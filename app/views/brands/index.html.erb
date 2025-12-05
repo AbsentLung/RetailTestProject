@@ -1,0 +1,26 @@
+<h1>Brands</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Products</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @brands.each do |brand| %>
+      <tr>
+        <td><%= brand.name %></td>
+        <td><%= brand.products.size %></td>
+        <td><%= link_to "View", brand_path(brand) %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<nav>
+  <%= link_to "Products", products_path %> |
+  <%= link_to "Stores", stores_path %>
+</nav>
+

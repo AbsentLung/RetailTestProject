@@ -1,0 +1,42 @@
+<h1><%= @product.name %></h1>
+
+<p>
+  <strong>Brand:</strong>
+  <% if @product.brand %>
+    <%= link_to @product.brand.name, brand_path(@product.brand) %>
+  <% else %>
+    None
+  <% end %>
+</p>
+
+<p>
+  <strong>Total Tracking Events:</strong>
+  <%= @product.tracking_events.size %>
+</p>
+
+<h2>Tracking Events</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Event Time</th>
+      <th>Inventory Present?</th>
+      <th>Store Address</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @product.tracking_events.each do |event| %>
+      <tr>
+        <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+        <td><%= event.inventory_present ? "Yes" : "No" %></td>
+        <td><%= event.store&.address %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<nav>
+  <%= link_to "Back to Products", products_path %> |
+  <%= link_to "Brands", brands_path %> |
+  <%= link_to "Stores", stores_path %>
+</nav>
+
