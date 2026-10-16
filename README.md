@@ -90,11 +90,11 @@ Feel free to make reasonable assumptions where requirements are ambiguous—just
 
 ## Time Expectation
 
-This project should take approximately [3-5 hours] to complete. Focus on demonstrating your problem-solving approach rather than achieving perfection.
+This project should take approximately [2-3 hours] to complete. Focus on demonstrating your problem-solving approach rather than achieving perfection. AI is allowed on this project. 
 
 ## Submission
 
 Please submit:
-- A link to your Git repository (GitHub, GitLab, etc.)
+- A link or invite to your Git repository (GitHub, GitLab, etc.)
 - A brief README or notes document explaining your key decisions
 - Any instructions needed to run your solution
