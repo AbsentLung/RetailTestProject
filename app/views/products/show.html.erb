@@ -10,11 +10,35 @@
 </p>
 
 <p>
-  <strong>Total Tracking Events:</strong>
-  <%= @product.tracking_events.size %>
+  <strong>Latest Price:</strong>
+  <% if @latest_price %>
+    $<%= format("%.2f", @latest_price.price_cents / 100.0) %> (as of <%= @latest_price.event_time.strftime("%Y-%m-%d") %>)
+  <% else %>
+    No price data yet
+  <% end %>
 </p>
 
-<h2>Tracking Events</h2>
+<% if @price_history.any? %>
+  <h2>Recent Price History</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Price</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @price_history.each do |price_check| %>
+        <tr>
+          <td><%= price_check.event_time.strftime("%Y-%m-%d") %></td>
+          <td>$<%= format("%.2f", price_check.price_cents / 100.0) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+
+<h2>Tracking Events (page <%= params[:page].to_i.clamp(1..) %>)</h2>
 <table>
   <thead>
     <tr>
@@ -24,7 +48,7 @@
     </tr>
   </thead>
   <tbody>
-    <% @product.tracking_events.each do |event| %>
+    <% @events.each do |event| %>
       <tr>
         <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
         <td><%= event.inventory_present ? "Yes" : "No" %></td>
@@ -33,10 +57,12 @@
     <% end %>
   </tbody>
 </table>
+<%= pagination_links %>
 
 <nav>
   <%= link_to "Back to Products", products_path %> |
   <%= link_to "Brands", brands_path %> |
-  <%= link_to "Stores", stores_path %>
+  <%= link_to "Stores", stores_path %> |
+  <%= link_to "Alerts", alerts_path %>
 </nav>
 

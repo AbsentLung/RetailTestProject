@@ -12,7 +12,7 @@
     <% @stores.each do |store| %>
       <tr>
         <td><%= store.address %></td>
-        <td><%= store.tracking_events.size %></td>
+        <td><%= @event_counts.fetch(store.id, 0) %></td>
         <td><%= link_to "View", store_path(store) %></td>
       </tr>
     <% end %>
@@ -21,6 +21,7 @@
 
 <nav>
   <%= link_to "Products", products_path %> |
-  <%= link_to "Brands", brands_path %>
+  <%= link_to "Brands", brands_path %> |
+  <%= link_to "Alerts", alerts_path %>
 </nav>
 

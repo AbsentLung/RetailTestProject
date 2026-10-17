@@ -1,0 +1,61 @@
+<h1>Alert</h1>
+
+<p>
+  <strong>Brand:</strong>
+  <%= link_to @alert.brand.name, brand_path(@alert.brand) %>
+</p>
+
+<p>
+  <strong>Product:</strong>
+  <%= link_to @alert.product.name, product_path(@alert.product) %>
+</p>
+
+<p>
+  <strong>Store:</strong>
+  <%= link_to @alert.store.address, store_path(@alert.store) %>
+</p>
+
+<p>
+  <strong>Triggered:</strong>
+  <%= @alert.triggered_at.strftime("%Y-%m-%d") %>
+  (second consecutive "no inventory" check)
+</p>
+
+<p>
+  <strong>Status:</strong>
+  <% if @alert.resolved_at %>
+    Resolved <%= @alert.resolved_at.strftime("%Y-%m-%d") %>
+  <% else %>
+    Ongoing
+  <% end %>
+</p>
+
+<h2>Triggering Events</h2>
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Event Time</th>
+      <th>Inventory Present?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>First</td>
+      <td><%= @alert.first_event.event_time.strftime("%Y-%m-%d") %></td>
+      <td><%= @alert.first_event.inventory_present ? "Yes" : "No" %></td>
+    </tr>
+    <tr>
+      <td>Second</td>
+      <td><%= @alert.second_event.event_time.strftime("%Y-%m-%d") %></td>
+      <td><%= @alert.second_event.inventory_present ? "Yes" : "No" %></td>
+    </tr>
+  </tbody>
+</table>
+
+<nav>
+  <%= link_to "Back to Alerts", alerts_path %> |
+  <%= link_to "Products", products_path %> |
+  <%= link_to "Stores", stores_path %> |
+  <%= link_to "Brands", brands_path %>
+</nav>
