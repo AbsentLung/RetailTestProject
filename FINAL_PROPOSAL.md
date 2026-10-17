@@ -1,6 +1,6 @@
 # Final Proposal
 
-**5 bugs fixed** · **1 alert generator, wired in** · **4 diagrams** · **~54s total (35s import + 19s alerts), ~51.6x faster import**
+**5 bugs fixed** · **1 alert generator, wired in** · **4 diagrams** · **41.56s end-to-end, measured** · **~51.6x faster import**
 
 Everything in this document reflects the final, corrected design after fourteen rounds of independent review in `REVIEWED_PROPOSAL.md`. Where that document shows the process — including the mistakes caught along the way — this one states only the destination.
 
@@ -406,7 +406,7 @@ flowchart LR
   CTRL --> VIEWS["Views"]
 ```
 
-**After, measured:** the batched importer runs the full 1,000,000-row CSV in **34.99 seconds** against a schema with the same indexes and foreign keys as production, plus **19 seconds** for the alert generator run once at the end — **~54 seconds total**. **Before, extrapolated:** ~30.1 minutes, projected from a 100,000-row row-by-row run under the same conditions — not measured end-to-end, since that would take the better part of an hour to re-confirm something already established. The import step alone is **~51.6x faster**; alert generation now runs automatically as part of every import rather than needing to be invoked by hand, or — as an earlier draft of this document got wrong — run once per batch, which measured out to roughly 87 minutes, worse than not optimizing the import at all.
+**After, measured twice:** separate scratch-table benchmarks put the batched import at 34.99s and the bulk alert pass at 19s (~54s added together). Once actually built and run end-to-end for real — `bin/rails tracking_events:import` against the real schema, real indexes and FKs, real 1,000,000-row file — the combined number came in at **41.56 seconds**, better than the sum of the two separate benchmarks. **Before, extrapolated:** ~30.1 minutes, projected from a 100,000-row row-by-row run under the same conditions — not measured end-to-end, since that would take the better part of an hour to re-confirm something already established. The import step alone is **~51.6x faster**; alert generation runs automatically as part of every import rather than needing to be invoked by hand, or — as an earlier draft of this document got wrong — run once per batch, which measured out to roughly 87 minutes, worse than not optimizing the import at all.
 
 ## Out of scope
 

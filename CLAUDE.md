@@ -14,7 +14,9 @@ A Rails app tracking retail inventory and price checks across stores, with an al
 rbenv install 3.2.2 && rbenv local 3.2.2   # Ruby 3.2.2, not system Ruby
 bundle install                              # Rails 7.1.6
 bin/rails db:create db:migrate db:seed
-bin/rails tracking_events:import            # ~36 min today (row-by-row importer still in place); ~35s once the batched version below is built — update this line once it is
+bin/rails tracking_events:import            # ~41s, measured - 1,000,000 rows, import + alert generation together
+bin/rails price_checks:generate_sample      # writes a sample price_checks.csv
+bin/rails price_checks:import
 bin/rails test
 ```
 
