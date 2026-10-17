@@ -1,9 +1,14 @@
 # db/seeds.rb
 
-# Clear existing data (adjust if you have dependent models like, etc.)
-Store.destroy_all
-Brand.destroy_all
-Product.destroy_all
+# Clear existing data, in dependency order. delete_all (not destroy_all) -
+# destroy_all would instantiate and destroy every row individually, the same
+# per-row overhead problem fixed everywhere else in this project.
+Alert.delete_all
+PriceCheck.delete_all
+TrackingEvent.delete_all
+Product.delete_all
+Store.delete_all
+Brand.delete_all
 
 brands_products = {
   "The Prancing Pony" => [
