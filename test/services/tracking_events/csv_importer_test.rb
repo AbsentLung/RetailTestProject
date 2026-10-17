@@ -1,0 +1,65 @@
+require "test_helper"
+require "tempfile"
+
+module TrackingEvents
+  class CsvImporterTest < ActiveSupport::TestCase
+    setup do
+      @brand = Brand.create!(name: "Test Brand")
+      @product = Product.create!(name: "Test Product", brand: @brand)
+      @store = Store.create!(address: "123 Test St")
+    end
+
+    def write_csv(rows)
+      file = Tempfile.new(["tracking_events", ".csv"])
+      file.write("Address,Product Name,Date,Inventory Present\n")
+      rows.each { |row| file.write(row.join(",") + "\n") }
+      file.flush
+      file
+    end
+
+    test "imports matching rows and skips rows with no matching store or product" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        ["Unknown Address", @product.name, "2025-01-02", "True"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert_equal 1, CsvImport.count
+    end
+
+    test "re-running the same file is a no-op" do
+      file = write_csv([[@store.address, @product.name, "2025-01-01", "True"]])
+
+      CsvImporter.new(file.path).call
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert_equal 1, CsvImport.count
+    end
+
+    test "a row with an unrecognized inventory value is skipped, not fatal" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        [@store.address, @product.name, "2025-01-02", "maybe"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert CsvImport.exists?(row_count: 1), "expected the successfully-imported row to be counted, skipping the bad one"
+    end
+
+    test "importing triggers alert generation" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "False"],
+        [@store.address, @product.name, "2025-01-02", "False"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, Alert.count
+    end
+  end
+end
