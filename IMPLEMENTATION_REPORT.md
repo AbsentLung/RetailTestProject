@@ -25,7 +25,7 @@ The "Out of Scope" section already named this as a 100x-scale concern and deferr
 
 Still deferring the `counter_cache` fix for this exercise — 125ms is tolerable for a demo app at this scale, and the fix was correctly scoped as a 100x concern, not a today concern. But "already the dominant cost on the page, even now" is a more honest way to describe it than leaving the number purely hypothetical.
 
-## The one real bug — found only by testing every route, not by reading the code
+## One bug, one test gap
 
 `ApplicationHelper#pagination_links` had an `if` modifier used inside an array literal:
 
