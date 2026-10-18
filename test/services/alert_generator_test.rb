@@ -106,6 +106,19 @@ class AlertGeneratorTest < ActiveSupport::TestCase
     assert_equal 1, Alert.count
   end
 
+  test "an unexpected failure during generation is reported and still raised" do
+    generator = AlertGenerator.new
+    reported = nil
+
+    ErrorReporter.stub(:notify, ->(exception, context: {}) { reported = exception }) do
+      generator.stub(:run, ->(**) { raise "boom" }) do
+        assert_raises(RuntimeError) { generator.call }
+      end
+    end
+
+    assert_equal "boom", reported.message
+  end
+
   test "the per-pair generator only touches its own pair" do
     other_product = Product.create!(name: "Other Product", brand: @brand)
     event("2025-01-01", false)

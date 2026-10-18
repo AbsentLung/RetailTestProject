@@ -1,0 +1,9 @@
+<%= @exception.class %>: <%= @exception.message %>
+
+Context:
+<% @context.each do |key, value| -%>
+  <%= key %>: <%= value %>
+<% end -%>
+
+Backtrace (first 10 lines):
+<%= (@exception.backtrace || []).first(10).join("\n") %>

@@ -75,6 +75,20 @@ module TrackingEvents
       assert CsvImport.exists?(row_count: 1), "a blank inventory cell is bad data, not a real no-inventory reading - it should be skipped, not recorded as false"
     end
 
+    test "an unexpected failure during import is reported, rolled back, and still raised" do
+      file = write_csv([[@store.address, @product.name, "2025-01-01", "True"]])
+      reported = nil
+
+      ErrorReporter.stub(:notify, ->(exception, context: {}) { reported = exception }) do
+        AlertGenerator.stub(:new, ->(*) { raise "boom" }) do
+          assert_raises(RuntimeError) { CsvImporter.new(file.path).call }
+        end
+      end
+
+      assert_equal "boom", reported.message
+      assert_equal 0, TrackingEvent.count, "the transaction should have rolled back, not left a partial import"
+    end
+
     test "importing triggers alert generation" do
       file = write_csv([
         [@store.address, @product.name, "2025-01-01", "False"],

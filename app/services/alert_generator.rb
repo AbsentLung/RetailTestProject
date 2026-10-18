@@ -23,6 +23,9 @@ class AlertGenerator
         run(filter: "", binds: [])
       end
     end
+  rescue => e
+    ErrorReporter.notify(e, context: { generator: self.class.name, product_id: @product_id, store_id: @store_id })
+    raise
   end
 
   private

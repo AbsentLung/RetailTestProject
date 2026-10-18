@@ -4,7 +4,7 @@
 
 ## What got built
 
-Migrations (constraints, `csv_imports`, `price_checks`, `alerts`), a shared `Importers::BaseCsvImporter` with the advisory lock and two thin subclasses, `AlertGenerator` (bulk and per-pair), `AlertsController` plus pagination and grouped counts across every list page, price display on the product and store show pages, an `ANALYZE` call that fixed a real post-truncate import hang, two integration tests closing a real gap in test coverage, eight fixes from PR review (a pagination tiebreak, three unpaginated index pages, a non-atomic alert regeneration, a blank-cell crash, a silently-miscategorized blank value, an octal-parsing bug, a missing database constraint, and stale import checksums on reseed), and 27 tests total.
+Migrations (constraints, `csv_imports`, `price_checks`, `alerts`), a shared `Importers::BaseCsvImporter` with the advisory lock and two thin subclasses, `AlertGenerator` (bulk and per-pair), `AlertsController` plus pagination and grouped counts across every list page, price display on the product and store show pages, an `ANALYZE` call that fixed a real post-truncate import hang, two integration tests closing a real gap in test coverage, eight fixes from PR review (a pagination tiebreak, three unpaginated index pages, a non-atomic alert regeneration, a blank-cell crash, a silently-miscategorized blank value, an octal-parsing bug, a missing database constraint, and stale import checksums on reseed), `ErrorReporter` wired into the importer and `AlertGenerator` with a logging/APM/email/SMS channel each, and 32 tests total.
 
 ## The design held up, numbers included
 
@@ -81,9 +81,26 @@ Fixed:
 - **`price_checks:generate_sample` had no fixed seed**, so regenerating the sample file produces different rows each time. Added `srand(42)`.
 - **An unused local variable** (`first_run_id`) was left over in `alert_generator_test.rb` from an earlier draft of that test.
 
+## Error reporting - something the original design didn't consider
+
+Nothing in `FINAL_PROPOSAL.md` or the review rounds asked where this app would actually tell a human when something had gone wrong. `AlertGenerator` and the importer could both already fail outright (the negative-price check constraint above is exactly that kind of failure) and the only trace would be whatever the Rails process happened to log on its way down.
+
+Added `ErrorReporter`, called from the two places that matter - the importer's transaction and `AlertGenerator#call` - not from the per-row rescue, which is routine and already just logs a warning. Anything that reaches `ErrorReporter` is, by definition, the whole operation failing, not one bad row.
+
+**This project doesn't have a New Relic account, or a real phone number, or a real email address to send to - and it's written as if it did anyway.** Each channel checks for its own configuration and no-ops cleanly if it isn't there, rather than pretending to call a service that doesn't exist:
+
+- **Logging.** Always happens, `Rails.logger.error`, with the exception and whatever context the call site had (file path, product/store IDs, rows processed so far).
+- **APM (New Relic).** `NewRelic::Agent.notice_error(...)` behind `defined?(NewRelic::Agent)`. True today: there's no account, so this never fires. If one existed, `bundle add newrelic_rpm` plus a license key is the only thing that would need to change - not this code.
+- **Email, for every urgent failure.** A real `UrgentIssueMailer`, not a stub - `config.action_mailer.delivery_method` is `:test` in development (same as it already was in `test.rb`), so it genuinely sends, it just doesn't leave the process. That would become `:smtp` with real credentials if this went live.
+- **Text, for the same failures.** Behind `ENV["TWILIO_ACCOUNT_SID"].present? && defined?(Twilio::REST::Client)` - no `twilio-ruby` gem added, consistent with this project's stance against a dependency that can't be exercised. The call is real Twilio API usage, just unreachable until that gem and those credentials exist.
+
+A broken notification channel can't suppress the original exception or block the others - each channel's own rescue logs and moves on, and the real exception is always re-raised after all three have had a chance to fire, so the transaction still rolls back exactly as it did before this existed. Verified both ways: a forced failure during import rolls back to zero rows, is reported, and still raises; and running `ErrorReporter.notify` directly in the actual development environment (not just the test suite) produces a real captured email with the right subject and context, with no attempted SMTP connection.
+
+Three new tests cover `ErrorReporter` directly; two more confirm the importer and `AlertGenerator` report and re-raise rather than swallow an unexpected failure.
+
 ## Test suite
 
-27 tests, 0 failures, 0 errors. Weighted toward the alert window logic per the stated priority: out-of-order arrival, same-day ties, a price check not interfering (it structurally can't — separate table), streak-vs-pair counting, `resolved_at` correctness (including skipping over a longer streak's middle), bulk and per-pair idempotency, and the late-event removal case. Model tests cover the presence/uniqueness validations, including `Product`'s global uniqueness specifically. Two are the integration smoke tests from the first build pass; four more cover the importer fixes from PR review above. The four empty `{}` fixture files were deleted — they would have violated the `null: false` constraints added this round and broken every test run via `fixtures :all`.
+32 tests, 0 failures, 0 errors. Weighted toward the alert window logic per the stated priority: out-of-order arrival, same-day ties, a price check not interfering (it structurally can't — separate table), streak-vs-pair counting, `resolved_at` correctness (including skipping over a longer streak's middle), bulk and per-pair idempotency, and the late-event removal case. Model tests cover the presence/uniqueness validations, including `Product`'s global uniqueness specifically. Two are the integration smoke tests from the first build pass; four more cover the importer fixes from PR review; five more cover error reporting and the fact that it never swallows a real failure. The four empty `{}` fixture files were deleted — they would have violated the `null: false` constraints added this round and broken every test run via `fixtures :all`.
 
 ## Final state
 
