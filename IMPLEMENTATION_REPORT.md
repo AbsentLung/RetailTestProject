@@ -1,4 +1,4 @@
-# First Launch
+# Implementation Report
 
 `FINAL_PROPOSAL.md` describes the design. This document is what happened the first time it was actually built, migrated, run, and tested — what held up exactly as predicted, what turned out to need a closer look even though the design was right, and the one real bug that only showed up by actually running the app rather than reading the code.
 
