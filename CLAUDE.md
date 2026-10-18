@@ -31,7 +31,8 @@ bin/rails test
 - Never use `includes` just to count rows — use a grouped count.
 - Every list page gets pagination from the start, not added later.
 - Measure before claiming a speedup — same schema, same indexes/FKs, same environment on both sides of the comparison.
-- Run `bin/rails test` before committing. Any change to alert logic needs a test covering it.
+- Run `bin/rails test` before committing. Any change to alert logic needs a test covering it. Test priority is the alert window logic (out-of-order arrival, same-day ties, a price check mid-streak, re-import idempotency) over model validations — that's where the risk actually is.
+- `config.eager_load` is only `true` under CI (`config/environments/test.rb`), so a plain local `bin/rails test` run never loads files outside the code paths your tests exercise — a broken helper can sit green indefinitely. `test/integration/routes_smoke_test.rb` calls `Rails.application.eager_load!` directly and hits every route; keep it passing rather than relying on CI to be the first to notice a boot failure.
 
 ## Traps already found
 
@@ -43,6 +44,7 @@ bin/rails test
 - **The per-pair `AlertGenerator` needs bind parameters, not string interpolation** — `exec_query(sql, name, [product_id, store_id])`, plain values.
 - **The import transaction needs `pg_advisory_xact_lock`.** Without it, two concurrent imports of the same file both do the full batched insert before colliding at commit — wasted work, not data corruption, but it raises uncaught.
 - **`event_time` stays `datetime`, not `date`**, even though the current data is day-only — keeps room for real time-of-day data later.
+- **Run `ANALYZE` on the target table inside the import transaction, right after the batched inserts and before `after_import`.** Immediately after a `TRUNCATE`, Postgres' planner statistics say the table has 0 rows — `TRUNCATE` resets `pg_class.reltuples` right away, and autovacuum can't see rows this transaction hasn't committed yet. A query planned later in the same transaction (the alert generator's window-function query) can get planned for an empty table and pick a bad plan for 1,000,000 rows. `ANALYZE`, unlike `VACUUM`, is allowed inside a transaction block and sees the transaction's own uncommitted writes — confirmed by repeating a fresh `TRUNCATE` + full re-import 4 times after adding it with no hang, versus 2 hangs in 4 attempts beforehand.
 
 ## Explicitly out of scope (see `FINAL_PROPOSAL.md`'s "Out of scope" section)
 
@@ -51,7 +53,3 @@ Scalability, fault tolerance, reads-vs-writes, and security already got a specif
 One scaling note from that section worth repeating here: offset pagination (`limit`/`offset`) is fine at 1,000,000 rows but not at 100x — grouped counts and deep-page `OFFSET` both scale with table size, not page size. Keyset pagination and a `counter_cache` are the fixes if that scale is ever actually reached.
 
 No auth/authorization (alerts aren't actually scoped to a brand yet — `current_brand.alerts.find(id)` + Pundit is the stated plan, not built), no background jobs or Redis (nothing needs them at this scale), no CSV upload hardening (the importer reads a fixed path, not user input).
-
-## Build order
-
-Migrations → importer → alert generator with tests → controllers and views → timing numbers. Test priority is the alert window logic (out-of-order arrival, same-day ties, a price check mid-streak, re-import idempotency) over model validations — that's where the risk actually is.

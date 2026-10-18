@@ -47,6 +47,15 @@ module Importers
         end
 
         model_class.insert_all(batch) if batch.any?
+
+        # Right after a TRUNCATE, Postgres still thinks this table has 0 rows (TRUNCATE
+        # resets pg_class.reltuples immediately, and autovacuum can't see uncommitted rows
+        # from this transaction). Without this, a query planned later in the same transaction
+        # — like AlertGenerator's window-function query below — can get planned against a
+        # table that looks empty, picking a plan that's fine for 0 rows and bad for 1,000,000.
+        # ANALYZE (unlike VACUUM) is allowed inside a transaction block and sees its own writes.
+        ActiveRecord::Base.connection.execute("ANALYZE #{model_class.table_name}")
+
         CsvImport.create!(checksum: checksum, row_count: created_count)
         after_import
       end
