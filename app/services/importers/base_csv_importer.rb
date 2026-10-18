@@ -25,26 +25,31 @@ module Importers
         next if CsvImport.exists?(checksum: checksum) # another run may have just finished while this one waited
 
         CSV.foreach(@path, headers: true, encoding: "bom|utf-8") do |row|
+          store   = stores_by_address[row["Address"]]
+          product = products_by_name[row["Product Name"]]
+          unless store && product
+            skipped_count += 1
+            next
+          end
+
           begin
-            store   = stores_by_address[row["Address"]]
-            product = products_by_name[row["Product Name"]]
-            unless store && product
-              skipped_count += 1
-              next
-            end
-
-            batch << row_attributes(row, store, product)
-            created_count += 1
-
-            if batch.size >= BATCH_SIZE
-              model_class.insert_all(batch)
-              batch.clear
-            end
+            attrs = row_attributes(row, store, product)
           rescue ArgumentError, TypeError => e
             # TypeError: Ruby's CSV library returns nil, not "", for a blank cell -
             # Date.parse(nil) and Integer(nil) both raise TypeError, not ArgumentError.
+            # Scoped to row_attributes only - insert_all below must never be caught
+            # here, or a real batch-insert failure would look like "skip one row".
             skipped_count += 1
             Rails.logger.warn("[#{self.class.name}] skipped row #{created_count + skipped_count}: #{e.message}")
+            next
+          end
+
+          batch << attrs
+          created_count += 1
+
+          if batch.size >= BATCH_SIZE
+            model_class.insert_all(batch)
+            batch.clear
           end
         end
 

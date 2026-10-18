@@ -68,6 +68,8 @@ CodeRabbit and a manual pass over the diff found seven real issues:
 
 Four new tests cover the two importer fixes: a blank date cell, a blank inventory value, a leading-zero price, and a blank price cell — each asserting the bad row is skipped, not that it crashes the import.
 
+**A second look at the TypeError fix above found one more real issue, caught before it reached review.** CodeRabbit's own fix prompt had explicitly warned "do not catch errors from `insert_all`" — but the `rescue` block applying the fix still wrapped the batch's `model_class.insert_all(batch)` call, not just `row_attributes`. Widening the caught exception types to `TypeError` made that pre-existing scope issue worse: a real `insert_all` failure (a constraint violation, for instance) could now get silently swallowed as "skip one row" instead of surfacing and rolling back the transaction. Fixed by moving the `begin/rescue` to wrap only `row_attributes`, with `insert_all` running unguarded outside it.
+
 ## Test suite
 
 27 tests, 0 failures, 0 errors. Weighted toward the alert window logic per the stated priority: out-of-order arrival, same-day ties, a price check not interfering (it structurally can't — separate table), streak-vs-pair counting, `resolved_at` correctness (including skipping over a longer streak's middle), bulk and per-pair idempotency, and the late-event removal case. Model tests cover the presence/uniqueness validations, including `Product`'s global uniqueness specifically. Two are the integration smoke tests from the first build pass; four more cover the importer fixes from PR review above. The four empty `{}` fixture files were deleted — they would have violated the `null: false` constraints added this round and broken every test run via `fixtures :all`.
