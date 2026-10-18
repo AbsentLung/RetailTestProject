@@ -1,6 +1,6 @@
 class BrandsController < ApplicationController
   def index
-    @brands = Brand.all
+    @brands = paginate(Brand.all.order(:name))
     @product_counts = Product.group(:brand_id).count
   end
 

@@ -22,7 +22,7 @@ module TrackingEvents
     def cast_boolean(value)
       case value
       when true, "true", "TRUE", "t", "T", "1", "True" then true
-      when false, "false", "FALSE", "f", "F", "0", "False", nil, "" then false
+      when false, "false", "FALSE", "f", "F", "0", "False" then false
       else
         raise ArgumentError, "Unrecognized inventory value: #{value.inspect}"
       end

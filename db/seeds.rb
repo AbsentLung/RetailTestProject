@@ -3,9 +3,14 @@
 # Clear existing data, in dependency order. delete_all (not destroy_all) -
 # destroy_all would instantiate and destroy every row individually, the same
 # per-row overhead problem fixed everywhere else in this project.
+# CsvImport has to go too: it's not a dependency-order issue, it's that the
+# importer checks its checksum before doing any work, so leaving it behind
+# after deleting the rows it recorded makes a later reimport of the same
+# file silently do nothing.
 Alert.delete_all
 PriceCheck.delete_all
 TrackingEvent.delete_all
+CsvImport.delete_all
 Product.delete_all
 Store.delete_all
 Brand.delete_all

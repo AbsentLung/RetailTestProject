@@ -51,6 +51,30 @@ module TrackingEvents
       assert CsvImport.exists?(row_count: 1), "expected the successfully-imported row to be counted, skipping the bad one"
     end
 
+    test "a row with a blank date cell is skipped, not fatal" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        [@store.address, @product.name, "", "True"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert CsvImport.exists?(row_count: 1), "expected the successfully-imported row to be counted, skipping the blank-date one"
+    end
+
+    test "a blank inventory value is skipped, not silently treated as false" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        [@store.address, @product.name, "2025-01-02", ""],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert CsvImport.exists?(row_count: 1), "a blank inventory cell is bad data, not a real no-inventory reading - it should be skipped, not recorded as false"
+    end
+
     test "importing triggers alert generation" do
       file = write_csv([
         [@store.address, @product.name, "2025-01-01", "False"],

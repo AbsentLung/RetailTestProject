@@ -1,6 +1,6 @@
 class StoresController < ApplicationController
   def index
-    @stores = Store.all
+    @stores = paginate(Store.all.order(:address))
     @event_counts = TrackingEvent.group(:store_id).count
   end
 

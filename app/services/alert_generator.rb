@@ -11,12 +11,17 @@ class AlertGenerator
   end
 
   def call
-    if @product_id && @store_id
-      Alert.where(product_id: @product_id, store_id: @store_id).delete_all
-      run(filter: "WHERE product_id = $1 AND store_id = $2", binds: [@product_id, @store_id])
-    else
-      Alert.delete_all
-      run(filter: "", binds: [])
+    # Wrapped so a standalone call (no enclosing transaction) can't leave the
+    # table empty between delete and regenerate. Joins the import's existing
+    # transaction when called from there instead of opening a nested one.
+    Alert.transaction do
+      if @product_id && @store_id
+        Alert.where(product_id: @product_id, store_id: @store_id).delete_all
+        run(filter: "WHERE product_id = $1 AND store_id = $2", binds: [@product_id, @store_id])
+      else
+        Alert.delete_all
+        run(filter: "", binds: [])
+      end
     end
   end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_17_192337) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_18_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -53,6 +53,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_17_192337) do
     t.datetime "updated_at", null: false
     t.index ["product_id", "event_time"], name: "index_price_checks_on_product_id_and_event_time"
     t.index ["store_id", "event_time"], name: "index_price_checks_on_store_id_and_event_time"
+    t.check_constraint "price_cents >= 0", name: "price_checks_price_cents_non_negative"
   end
 
   create_table "products", force: :cascade do |t|

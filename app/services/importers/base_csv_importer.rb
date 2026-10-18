@@ -40,7 +40,9 @@ module Importers
               model_class.insert_all(batch)
               batch.clear
             end
-          rescue ArgumentError => e
+          rescue ArgumentError, TypeError => e
+            # TypeError: Ruby's CSV library returns nil, not "", for a blank cell -
+            # Date.parse(nil) and Integer(nil) both raise TypeError, not ArgumentError.
             skipped_count += 1
             Rails.logger.warn("[#{self.class.name}] skipped row #{created_count + skipped_count}: #{e.message}")
           end

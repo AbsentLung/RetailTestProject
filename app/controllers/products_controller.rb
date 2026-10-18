@@ -1,6 +1,6 @@
 class ProductsController < ApplicationController
   def index
-    @products = Product.includes(:brand)
+    @products = paginate(Product.includes(:brand).order(:name))
     @event_counts = TrackingEvent.group(:product_id).count
   end
 
