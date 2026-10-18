@@ -19,6 +19,7 @@ module Importers
       batch = []
       created_count = 0
       skipped_count = 0
+      started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       begin
         ActiveRecord::Base.transaction do
@@ -74,12 +75,14 @@ module Importers
           importer: self.class.name,
           path: @path.to_s,
           created_so_far: created_count,
-          skipped_so_far: skipped_count
+          skipped_so_far: skipped_count,
+          duration: "#{(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at).round(1)}s"
         })
         raise
       end
 
-      Rails.logger.info "[#{self.class.name}] created=#{created_count} skipped=#{skipped_count}"
+      duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+      Rails.logger.info "[#{self.class.name}] created=#{created_count} skipped=#{skipped_count} duration=#{duration.round(1)}s"
     end
 
     private

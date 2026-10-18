@@ -5,9 +5,16 @@
 # than starting one. Always deletes before regenerating, so re-running never
 # leaves stale resolved_at values or orphaned rows behind.
 class AlertGenerator
-  def initialize(product_id: nil, store_id: nil)
+  # report_errors: false when called from inside another operation's own
+  # transaction (the importer's after_import) - nothing has actually rolled
+  # back yet at that point, so reporting there would mean a slow mail/SMS
+  # call holds the advisory lock and the uncommitted import open, and the
+  # outer caller's own rescue would report the same exception a second time
+  # once it re-raises. The outer caller reports once, after its real rollback.
+  def initialize(product_id: nil, store_id: nil, report_errors: true)
     @product_id = product_id
     @store_id = store_id
+    @report_errors = report_errors
   end
 
   def call
@@ -24,7 +31,7 @@ class AlertGenerator
       end
     end
   rescue => e
-    ErrorReporter.notify(e, context: { generator: self.class.name, product_id: @product_id, store_id: @store_id })
+    ErrorReporter.notify(e, context: { generator: self.class.name, product_id: @product_id, store_id: @store_id }) if @report_errors
     raise
   end
 

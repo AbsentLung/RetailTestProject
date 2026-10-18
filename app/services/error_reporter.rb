@@ -12,6 +12,13 @@
 # in the environment.
 class ErrorReporter
   def self.notify(exception, context: {})
+    # The same exception can reach here twice - AlertGenerator re-raises past its
+    # own rescue, and the importer's rescue catches that same object again. Mark
+    # it reported so a nested caller's re-raise doesn't trigger a second round of
+    # channels for what's still one incident.
+    return if exception.instance_variable_get(:@_error_reporter_notified)
+    exception.instance_variable_set(:@_error_reporter_notified, true)
+
     Rails.logger.error("[ErrorReporter] #{exception.class}: #{exception.message} #{context.inspect}")
 
     %i[notify_apm notify_email notify_sms].each do |channel|

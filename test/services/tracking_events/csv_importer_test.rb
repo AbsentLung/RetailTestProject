@@ -89,6 +89,24 @@ module TrackingEvents
       assert_equal 0, TrackingEvent.count, "the transaction should have rolled back, not left a partial import"
     end
 
+    test "an alert-generation failure during import is reported exactly once" do
+      file = write_csv([[@store.address, @product.name, "2025-01-01", "False"]])
+      generator = AlertGenerator.new(report_errors: false)
+
+      generator.stub(:run, ->(**) { raise "boom" }) do
+        AlertGenerator.stub(:new, ->(*) { generator }) do
+          assert_difference "ActionMailer::Base.deliveries.size", 1 do
+            assert_raises(RuntimeError) { CsvImporter.new(file.path).call }
+          end
+        end
+      end
+
+      assert_equal 0, TrackingEvent.count, "the transaction should have rolled back, not left a partial import"
+
+      mail = ActionMailer::Base.deliveries.last
+      assert_match "CsvImporter", mail.body.to_s, "the one email sent should carry the importer's context (file path, rows so far), not just AlertGenerator's"
+    end
+
     test "importing triggers alert generation" do
       file = write_csv([
         [@store.address, @product.name, "2025-01-01", "False"],

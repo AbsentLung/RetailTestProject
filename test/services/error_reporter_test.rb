@@ -12,11 +12,13 @@ class ErrorReporterTest < ActiveSupport::TestCase
     assert_match "something broke", mail.subject
   end
 
-  test "New Relic and SMS stay no-ops when not configured, as they are today" do
+  test "New Relic and SMS stay no-ops when not configured" do
     assert_not defined?(NewRelic::Agent)
-    assert_nil ENV["TWILIO_ACCOUNT_SID"]
 
+    original = ENV.delete("TWILIO_ACCOUNT_SID")
     assert_nothing_raised { ErrorReporter.notify(RuntimeError.new("x")) }
+  ensure
+    ENV["TWILIO_ACCOUNT_SID"] = original
   end
 
   test "a failure in one notification channel doesn't block the others or raise" do

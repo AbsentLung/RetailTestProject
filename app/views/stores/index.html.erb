@@ -9,7 +9,7 @@
     </tr>
   </thead>
   <tbody>
-    <% @stores.each do |store| %>
+    <% @stores.first(Paginatable::PER_PAGE).each do |store| %>
       <tr>
         <td><%= store.address %></td>
         <td><%= @event_counts.fetch(store.id, 0) %></td>

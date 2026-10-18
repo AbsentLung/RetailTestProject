@@ -10,6 +10,7 @@ namespace :price_checks do
       FROM tracking_events te
       JOIN stores s ON s.id = te.store_id
       JOIN products p ON p.id = te.product_id
+      ORDER BY s.address, p.name
     SQL
 
     date_range = (Date.new(2024, 12, 5)..Date.new(2025, 12, 5))

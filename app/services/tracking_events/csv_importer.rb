@@ -16,7 +16,10 @@ module TrackingEvents
     end
 
     def after_import
-      AlertGenerator.new.call
+      # Runs inside the importer's own open transaction - let the importer's
+      # rescue be the one that reports a failure here, once, after it's
+      # actually rolled back (see AlertGenerator#initialize).
+      AlertGenerator.new(report_errors: false).call
     end
 
     def cast_boolean(value)

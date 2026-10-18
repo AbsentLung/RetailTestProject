@@ -6,7 +6,7 @@ class UrgentIssueMailer < ApplicationMailer
     @context = context
 
     mail(
-      to: "ops@example.com",
+      to: ENV.fetch("URGENT_ALERT_EMAIL", "ops@example.com"),
       subject: "[Retail Inventory] #{exception.class}: #{exception.message.to_s.truncate(80)}"
     )
   end
