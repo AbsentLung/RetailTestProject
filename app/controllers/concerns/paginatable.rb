@@ -5,7 +5,7 @@ module Paginatable
 
   def paginate(scope)
     page = params[:page].to_i.clamp(1..)
-    # Every caller orders by a non-unique column (event_time, triggered_at) - append
+    # Callers may order by a non-unique column (event_time, triggered_at) - append
     # the primary key as a tiebreak so ties don't repeat or skip rows across pages.
     scope.order(scope.klass.primary_key => :desc)
          .limit(PER_PAGE)

@@ -3,6 +3,7 @@ require "csv"
 namespace :price_checks do
   desc "Generate a sample price_checks.csv in the app root (mirrors tracking_events.csv's format)"
   task generate_sample: :environment do
+    srand(42) # reproducible output - anyone regenerating the sample file gets the same rows
     path = Rails.root.join("price_checks.csv")
     pairs = ActiveRecord::Base.connection.select_rows(<<~SQL)
       SELECT DISTINCT s.address, p.name

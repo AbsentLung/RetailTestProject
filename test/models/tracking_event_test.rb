@@ -10,9 +10,9 @@ class TrackingEventTest < ActiveSupport::TestCase
     store = Store.create!(address: "1 Main St")
 
     assert_raises(ActiveRecord::NotNullViolation) do
-      TrackingEvent.connection.execute(<<~SQL)
+      TrackingEvent.connection.exec_query(<<~SQL, "test", [product.id, store.id])
         INSERT INTO tracking_events (product_id, store_id, inventory_present, created_at, updated_at)
-        VALUES (#{product.id}, #{store.id}, true, now(), now())
+        VALUES ($1, $2, true, now(), now())
       SQL
     end
   end

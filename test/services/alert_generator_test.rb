@@ -101,7 +101,6 @@ class AlertGeneratorTest < ActiveSupport::TestCase
     event("2025-01-02", false)
 
     AlertGenerator.new.call
-    first_run_id = Alert.first.id
     AlertGenerator.new.call
 
     assert_equal 1, Alert.count

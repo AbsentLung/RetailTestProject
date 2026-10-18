@@ -4,7 +4,7 @@
 
 ## What got built
 
-Migrations (constraints, `csv_imports`, `price_checks`, `alerts`), a shared `Importers::BaseCsvImporter` with the advisory lock and two thin subclasses, `AlertGenerator` (bulk and per-pair), `AlertsController` plus pagination and grouped counts across every list page, price display on the product and store show pages, an `ANALYZE` call that fixed a real post-truncate import hang, two integration tests closing a real gap in test coverage, seven fixes from PR review (a pagination tiebreak, three unpaginated index pages, a non-atomic alert regeneration, a blank-cell crash, a silently-miscategorized blank value, an octal-parsing bug, and a missing database constraint), and 27 tests total.
+Migrations (constraints, `csv_imports`, `price_checks`, `alerts`), a shared `Importers::BaseCsvImporter` with the advisory lock and two thin subclasses, `AlertGenerator` (bulk and per-pair), `AlertsController` plus pagination and grouped counts across every list page, price display on the product and store show pages, an `ANALYZE` call that fixed a real post-truncate import hang, two integration tests closing a real gap in test coverage, eight fixes from PR review (a pagination tiebreak, three unpaginated index pages, a non-atomic alert regeneration, a blank-cell crash, a silently-miscategorized blank value, an octal-parsing bug, a missing database constraint, and stale import checksums on reseed), and 27 tests total.
 
 ## The design held up, numbers included
 
@@ -55,9 +55,9 @@ The fix: run `ANALYZE tracking_events` inside the import transaction, after the 
 
 ## Found in PR review, fixed before merge
 
-CodeRabbit and a manual pass over the diff found seven real issues:
+CodeRabbit and a manual pass over the diff found eight real issues:
 
-- **Pagination order was missing a tiebreak.** `event_time`/`triggered_at` are dates, and ties are common — Postgres doesn't guarantee stable ordering across separate `LIMIT`/`OFFSET` queries for tied values, so rows could repeat on one page and never appear on another. `Paginatable#paginate` now appends the primary key as a descending secondary sort.
+- **Pagination order was missing a tiebreak.** `event_time`/`triggered_at` aren't unique per row, and ties are common — Postgres doesn't guarantee stable ordering across separate `LIMIT`/`OFFSET` queries for tied values, so rows could repeat on one page and never appear on another. `Paginatable#paginate` now appends the primary key as a descending secondary sort.
 - **The products/stores/brands index pages were never actually paginated.** `Product.includes(:brand)`, `Store.all`, and `Brand.all` loaded every row with no `limit` at all — a direct miss against the project's own stated convention ("every list page gets pagination from the start"). Harmless at today's 226/101/45 rows, but inconsistent with what the rest of the app does. Fixed, with a sensible base order (`:name`/`:address`) under the same tiebreak.
 - **`AlertGenerator#call`'s delete-then-regenerate wasn't atomic outside the import.** The tracking-event import runs it inside its own transaction, but a standalone call (e.g. `AlertGenerator.new(product_id:, store_id:).call`) ran `delete_all` and the `INSERT ... SELECT` as two separate statements — a failure in between leaves that scope with zero alerts, and a concurrent reader could briefly see the same. Wrapped in `Alert.transaction do ... end`, which joins the import's existing transaction rather than opening a nested one.
 - **A single blank cell crashed the entire import, not just that row.** Verified empirically rather than assumed: Ruby's CSV library returns `nil`, not `""`, for an empty field, and `Date.parse(nil)` / `Integer(nil)` both raise `TypeError`, not `ArgumentError` — the only exception the per-row rescue caught. One blank `Date` or `Price Cents` cell rolled back the whole file. Fixed: `rescue ArgumentError, TypeError`.
@@ -66,9 +66,20 @@ CodeRabbit and a manual pass over the diff found seven real issues:
 - **Negative prices had no constraint at the database level.** `insert_all` skips Rails validations entirely, and `null: false` doesn't reject a negative integer. Added a `price_cents >= 0` check constraint via migration, applied cleanly against the real 1,000,000-row dataset.
 - **Reseeding left stale import checksums behind.** `db:seed` deleted `Alert`/`PriceCheck`/`TrackingEvent` rows but never cleared `CsvImport`, so re-importing the same file afterward would see its checksum already recorded and silently do nothing. Added `CsvImport.delete_all` to the reset block.
 
-Four new tests cover the two importer fixes: a blank date cell, a blank inventory value, a leading-zero price, and a blank price cell — each asserting the bad row is skipped, not that it crashes the import.
+Four new tests cover three importer fixes: the `TypeError` rescue (a blank date cell, a blank price cell), the `cast_boolean` blank-value fix (a blank inventory value), and the octal-parsing fix (a leading-zero price) — each asserting the bad row is skipped, not that it crashes the import.
 
-**A second look at the TypeError fix above found one more real issue, caught before it reached review.** CodeRabbit's own fix prompt had explicitly warned "do not catch errors from `insert_all`" — but the `rescue` block applying the fix still wrapped the batch's `model_class.insert_all(batch)` call, not just `row_attributes`. Widening the caught exception types to `TypeError` made that pre-existing scope issue worse: a real `insert_all` failure (a constraint violation, for instance) could now get silently swallowed as "skip one row" instead of surfacing and rolling back the transaction. Fixed by moving the `begin/rescue` to wrap only `row_attributes`, with `insert_all` running unguarded outside it.
+**A second look at the TypeError fix above found one more real issue.** The `rescue` block applying that fix still wrapped the batch's `model_class.insert_all(batch)` call, not just `row_attributes`. Fixed by moving the `begin/rescue` to wrap only `row_attributes`, so `insert_all` failures still surface and roll back the transaction instead of getting silently counted as a skipped row.
+
+## A follow-up review pass
+
+**Raised, deliberately not fixed: a negative price still aborts the whole import instead of skipping that one row.** A `-5` in `Price Cents` parses fine in `row_attributes`, reaches `insert_all`, and only then hits the `price_cents >= 0` check constraint — rolling back the entire file the same way a blank cell used to. The constraint itself is correct and stays as a backstop; rejecting negative prices before the insert (so the existing rescue skips just that row) is the fix, same shape as the blank-cell fix above, left undone for this exercise rather than added as a ninth round of changes.
+
+Fixed:
+
+- **"Next" always showed, even past the last page.** Most visible on the brands index — 45 rows, one page, and "Next" still linked to an empty page 2. `pagination_links` now takes the rendered collection and only shows "Next" when that page came back full (`collection.size == PER_PAGE`).
+- **A test used raw string interpolation into SQL** (`test/models/tracking_event_test.rb`) instead of bind parameters, inconsistent with the parameterized-SQL convention used everywhere else. Switched to `exec_query` with bound values.
+- **`price_checks:generate_sample` had no fixed seed**, so regenerating the sample file produces different rows each time. Added `srand(42)`.
+- **An unused local variable** (`first_run_id`) was left over in `alert_generator_test.rb` from an earlier draft of that test.
 
 ## Test suite
 
