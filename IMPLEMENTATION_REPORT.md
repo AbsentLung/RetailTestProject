@@ -63,16 +63,16 @@ CodeRabbit and a manual pass over the diff found eight real issues:
 - **A single blank cell crashed the entire import, not just that row.** Verified empirically rather than assumed: Ruby's CSV library returns `nil`, not `""`, for an empty field, and `Date.parse(nil)` / `Integer(nil)` both raise `TypeError`, not `ArgumentError` — the only exception the per-row rescue caught. One blank `Date` or `Price Cents` cell rolled back the whole file. Fixed: `rescue ArgumentError, TypeError`.
 - **A blank `Inventory Present` cell was silently recorded as a real "no inventory" reading.** `cast_boolean` mapped `nil`/`""` into the same bucket as `"false"`/`"f"`/`"0"` — backwards from the documented intent of bug #5 ("an unrecognized value now raises instead of defaulting to false, so a data-quality problem can't masquerade as a real no-inventory reading"). A blank cell is exactly the data-quality problem that rule exists for. Removed `nil, ""` from the false branch; they now raise and the row is skipped like any other bad value.
 - **Price parsing had a leading-zero bug.** `Integer("0100")` is Ruby reading an octal literal, not a decimal one — it returns `64`, not `100`. Fixed with `Integer(row["Price Cents"], 10)`.
-- **Negative prices had no constraint at the database level.** `insert_all` skips Rails validations entirely, and `null: false` doesn't reject a negative integer. Added a `price_cents >= 0` check constraint via migration, applied cleanly against the real 1,000,000-row dataset.
+- **Negative prices had no constraint at the database level.** `insert_all` skips Rails validations entirely, and `null: false` doesn't reject a negative integer. Added a `price_cents >= 0` check constraint via migration, applied cleanly against the real 45,672-row `price_checks` table.
 - **Reseeding left stale import checksums behind.** `db:seed` deleted `Alert`/`PriceCheck`/`TrackingEvent` rows but never cleared `CsvImport`, so re-importing the same file afterward would see its checksum already recorded and silently do nothing. Added `CsvImport.delete_all` to the reset block.
 
 Four new tests cover three importer fixes: the `TypeError` rescue (a blank date cell, a blank price cell), the `cast_boolean` blank-value fix (a blank inventory value), and the octal-parsing fix (a leading-zero price) — each asserting the bad row is skipped, not that it crashes the import.
 
 **A second look at the TypeError fix above found one more real issue.** The `rescue` block applying that fix still wrapped the batch's `model_class.insert_all(batch)` call, not just `row_attributes`. Fixed by moving the `begin/rescue` to wrap only `row_attributes`, so `insert_all` failures still surface and roll back the transaction instead of getting silently counted as a skipped row.
 
-## A follow-up review pass
+## Edge cases and cleanups
 
-**Raised, deliberately not fixed: a negative price still aborts the whole import instead of skipping that one row.** A `-5` in `Price Cents` parses fine in `row_attributes`, reaches `insert_all`, and only then hits the `price_cents >= 0` check constraint — rolling back the entire file the same way a blank cell used to. The constraint itself is correct and stays as a backstop; rejecting negative prices before the insert (so the existing rescue skips just that row) is the fix, same shape as the blank-cell fix above, left undone for this exercise rather than added as a ninth round of changes.
+A negative price fails the whole import by design, the same as a structurally broken file — the check constraint is the guard. That's different from a blank cell, which is ordinary missing data in one row; a negative price is a sign the file itself shouldn't be trusted, so stopping and surfacing it beats silently dropping one row and moving on.
 
 Fixed:
 
