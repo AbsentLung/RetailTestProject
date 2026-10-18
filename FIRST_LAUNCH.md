@@ -40,6 +40,8 @@ safe_join([
 
 This is a `SyntaxError`, not a logic bug — and because helpers load eagerly in production, it broke the *entire app's boot*, not just the pages using pagination. `curl`-testing every route (not just the ones that changed) caught it immediately; a narrower test pass that only checked the new pages might have missed that the root path was down too. Fixed by building the list conditionally instead of embedding the conditional in the literal. This is exactly the gap between "the design review found real bugs" and "actually running the code finds a different category of bug" — eighteen rounds of review never touched this file, because it didn't exist until implementation.
 
+After this bug surfaced, automated and unit testing covering exactly this kind of failure was requested directly — not something added unprompted on a second look.
+
 **The real gap this exposed: `bin/rails test` never would have caught it, and the first draft of this document didn't say so.** `config.eager_load` is only `true` under CI (`config/environments/test.rb`); a plain local test run never loads a helper unless some test exercises the view that calls it, and none did. All 21 tests could stay green while the app was down — and because nothing in the original 21 tests covered booting the app or hitting a route, nothing would have caught it a second time either.
 
 That gap only surfaced because it was pointed out directly: "the syntax bug got past all 21 passing tests, so your test suite has a gap." In response, two new tests went in — `test/integration/routes_smoke_test.rb`:
