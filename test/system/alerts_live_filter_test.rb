@@ -25,6 +25,32 @@ class AlertsLiveFilterTest < ApplicationSystemTestCase
     assert_match(/status=open/, page.current_url)
   end
 
+  test "clicking a column header sorts without a page reload" do
+    brand_a = Brand.create!(name: "AAA Brand")
+    brand_z = Brand.create!(name: "ZZZ Brand")
+    store = Store.create!(address: "1 Sort Test Ave")
+    make_alert(brand: brand_z, store: store, name: "Z Product")
+    make_alert(brand: brand_a, store: store, name: "A Product")
+
+    visit alerts_path
+    page.execute_script("window.name = 'still-the-same-page'")
+
+    click_link "Brand"
+
+    # assert_selector (unlike all/map) actually waits for the fetch-and-
+    # re-render to finish - reading rows immediately after the click can
+    # race the async update and see the pre-click DOM.
+    assert_selector "tbody tr:first-child td:first-child", text: "AAA Brand"
+    assert_equal ["AAA Brand", "ZZZ Brand"], all("tbody tr td:first-child").map(&:text)
+    assert_equal "still-the-same-page", page.evaluate_script("window.name")
+    assert_match(/sort=brand/, page.current_url)
+
+    click_link "Brand ▲"
+
+    assert_selector "tbody tr:first-child td:first-child", text: "ZZZ Brand"
+    assert_equal ["ZZZ Brand", "AAA Brand"], all("tbody tr td:first-child").map(&:text)
+  end
+
   private
 
   def make_alert(brand:, store:, name:)
