@@ -1,16 +1,17 @@
 import { Controller } from "@hotwired/stimulus";
 class live_search_controller_default extends Controller {
-  static targets = ["results"];
+  static targets = ["results", "field"];
   timeout = null;
-  apply(event) {
-    const value = event.target.value;
+  apply() {
     if (this.timeout) window.clearTimeout(this.timeout);
-    this.timeout = window.setTimeout(() => this.search(value), 300);
+    this.timeout = window.setTimeout(() => this.search(), 300);
   }
-  async search(query) {
+  async search() {
     const url = new URL(window.location.href);
-    if (query) url.searchParams.set("q", query);
-    else url.searchParams.delete("q");
+    this.fieldTargets.forEach((field) => {
+      if (field.value) url.searchParams.set(field.name, field.value);
+      else url.searchParams.delete(field.name);
+    });
     url.searchParams.delete("page");
     let response;
     try {

@@ -10,12 +10,17 @@ class BrandsController < ApplicationController
   def index
     @sort = SORTS.key?(params[:sort]) ? params[:sort] : DEFAULT_SORT
     @direction = %w[asc desc].include?(params[:direction]) ? params[:direction].to_sym : SORTS.fetch(@sort)[:direction]
+    @q = params[:q].presence
 
     scope = if @sort == "products"
       Brand.left_joins(:products).select("brands.*, COUNT(products.id) AS product_count").group("brands.id")
     else
       Brand.all
     end
+    # Bound, not interpolated - sanitize_sql_like escapes %/_ so a literal
+    # "%" is searched for literally, not as a wildcard. See
+    # DESIGN_PROPOSAL_FINAL.md's Search section.
+    scope = scope.where("brands.name ILIKE ?", "%#{Brand.sanitize_sql_like(@q)}%") if @q
 
     @brands = paginate(scope.reorder(Arel.sql(SORTS.fetch(@sort)[:order]) => @direction))
     @product_counts = if @sort == "products"

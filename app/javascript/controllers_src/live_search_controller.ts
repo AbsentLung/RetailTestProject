@@ -1,34 +1,39 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Debounced live search: fetches the current page with an updated ?q=
-// and swaps in just the results, no page reload and no submit button -
-// typing keeps focus in the search box the whole time, which a full
-// navigation per keystroke would break. The same fetch-and-replace
-// approach as the pre-React alerts filter; a single text field doesn't
-// need React's state management the way alerts' filters+sort+cursor did.
+// Debounced live search: fetches the current page with updated query
+// params (one per search field, named by the field's own `name` attribute)
+// and swaps in just the results - no page reload and no submit button, so
+// typing keeps focus in the search box the whole time. Supports more than
+// one independent field (e.g. products searching by name and by brand) -
+// each search reads every field's current value, not just the one that
+// just changed, so they combine correctly. The same fetch-and-replace
+// approach as the pre-React alerts filter; plain text fields don't need
+// React's state management the way alerts' filters+sort+cursor did.
 export default class extends Controller {
-  static targets = ["results"]
+  static targets = ["results", "field"]
   declare readonly resultsTarget: HTMLElement
+  declare readonly fieldTargets: HTMLInputElement[]
 
   timeout: number | null = null
 
-  apply(event: Event) {
-    const value = (event.target as HTMLInputElement).value
+  apply() {
     if (this.timeout) window.clearTimeout(this.timeout)
-    this.timeout = window.setTimeout(() => this.search(value), 300)
+    this.timeout = window.setTimeout(() => this.search(), 300)
   }
 
-  async search(query: string) {
+  async search() {
     const url = new URL(window.location.href)
-    if (query) url.searchParams.set("q", query)
-    else url.searchParams.delete("q")
+    this.fieldTargets.forEach((field) => {
+      if (field.value) url.searchParams.set(field.name, field.value)
+      else url.searchParams.delete(field.name)
+    })
     url.searchParams.delete("page") // a new search starts over at page 1
 
     let response
     try {
       response = await fetch(url.toString(), { headers: { Accept: "text/html" } })
     } catch {
-      return // offline/network failure - the field still works via a real submit on Enter
+      return // offline/network failure - the fields still work via a real submit on Enter
     }
     if (!response.ok) return
 

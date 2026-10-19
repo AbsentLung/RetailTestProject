@@ -68,4 +68,47 @@ class ProductsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "tbody tr", 1
   end
+
+  test "q searches products by name substring" do
+    Product.create!(name: "Chocolate Frogs", brand: @product.brand)
+    Product.create!(name: "Bree-Brewed Ale", brand: @product.brand)
+
+    get products_path(q: "Chocolate")
+    assert_response :success
+    assert_match "Chocolate Frogs", response.body
+    assert_no_match "Bree-Brewed", response.body
+  end
+
+  test "brand_q searches products by their brand's name substring" do
+    honeydukes = Brand.create!(name: "Honeydukes Sweetshop")
+    Product.create!(name: "Chocolate Frogs", brand: honeydukes)
+
+    get products_path(brand_q: "Honeydukes")
+    assert_response :success
+    assert_match "Chocolate Frogs", response.body
+    assert_no_match @product.name, response.body
+  end
+
+  test "q and brand_q combine" do
+    honeydukes = Brand.create!(name: "Honeydukes Sweetshop")
+    match = Product.create!(name: "Chocolate Frogs", brand: honeydukes)
+    wrong_brand = Product.create!(name: "Chocolate Something", brand: @product.brand)
+    wrong_name = Product.create!(name: "Cauldron Cakes", brand: honeydukes)
+
+    get products_path(q: "Chocolate", brand_q: "Honeydukes")
+    assert_response :success
+    assert_select "tbody", text: /#{match.name}/
+    assert_select "tbody", text: /#{wrong_brand.name}/, count: 0
+    assert_select "tbody", text: /#{wrong_name.name}/, count: 0
+  end
+
+  test "a literal % in q is searched for literally, not as a wildcard" do
+    Product.create!(name: "50% Off Widget", brand: @product.brand)
+    Product.create!(name: "500 Widget", brand: @product.brand)
+
+    get products_path(q: "50%")
+    assert_response :success
+    assert_match "50% Off Widget", response.body
+    assert_no_match "500 Widget", response.body
+  end
 end

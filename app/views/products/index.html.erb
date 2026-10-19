@@ -1,31 +1,54 @@
-<div class="page-header">
-  <h1>Products</h1>
-</div>
-
-<div class="card">
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <%= sort_header "Name", url: sort_url("name"), active: @sort == "name", direction: @direction %>
-          <%= sort_header "Brand", url: sort_url("brand"), active: @sort == "brand", direction: @direction %>
-          <%= sort_header "Tracking Events", url: sort_url("events"), active: @sort == "events", direction: @direction, th_class: "num" %>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @products.first(Paginatable::PER_PAGE).each do |product| %>
-          <tr>
-            <td><%= product.name %></td>
-            <td><%= product.brand&.name %></td>
-            <td class="num"><%= @event_counts.fetch(product.id, 0) %></td>
-            <td><%= link_to "View", product_path(product) %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+<div data-controller="live-search">
+  <div class="page-header">
+    <h1>Products</h1>
   </div>
-  <%= pagination_links(@products) %>
+
+  <div class="card">
+    <%= form_with url: products_path, method: :get, local: true, class: "filter-row" do %>
+      <div class="filter-field">
+        <%= label_tag :q, "Search by name" %>
+        <%= search_field_tag :q, @q, placeholder: "e.g. Chocolate Frogs", autocomplete: "off",
+              data: { action: "input->live-search#apply", "live-search-target": "field" } %>
+      </div>
+      <div class="filter-field">
+        <%= label_tag :brand_q, "Search by brand" %>
+        <%= search_field_tag :brand_q, @brand_q, placeholder: "e.g. Honeydukes", autocomplete: "off",
+              data: { action: "input->live-search#apply", "live-search-target": "field" } %>
+      </div>
+      <% if @q || @brand_q %>
+        <%= link_to "Clear", products_path, class: "nav-link" %>
+      <% end %>
+    <% end %>
+  </div>
+
+  <div class="card" data-live-search-target="results">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <%= sort_header "Name", url: sort_url("name"), active: @sort == "name", direction: @direction %>
+            <%= sort_header "Brand", url: sort_url("brand"), active: @sort == "brand", direction: @direction %>
+            <%= sort_header "Tracking Events", url: sort_url("events"), active: @sort == "events", direction: @direction, th_class: "num" %>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @products.first(Paginatable::PER_PAGE).each do |product| %>
+            <tr>
+              <td><%= product.name %></td>
+              <td><%= product.brand&.name %></td>
+              <td class="num"><%= @event_counts.fetch(product.id, 0) %></td>
+              <td><%= link_to "View", product_path(product) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @products.empty? %>
+        <p class="empty-state">No products match this search.</p>
+      <% end %>
+    </div>
+    <%= pagination_links(@products) %>
+  </div>
 </div>
 
 <nav>

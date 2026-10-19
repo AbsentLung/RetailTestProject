@@ -8,7 +8,7 @@
       <div class="filter-field">
         <%= label_tag :q, "Search by address" %>
         <%= search_field_tag :q, @q, placeholder: "e.g. Diagon Alley", autocomplete: "off",
-              data: { action: "input->live-search#apply", "live-search-target": "input" } %>
+              data: { action: "input->live-search#apply", "live-search-target": "field" } %>
       </div>
       <% if @q %>
         <%= link_to "Clear", stores_path, class: "nav-link" %>

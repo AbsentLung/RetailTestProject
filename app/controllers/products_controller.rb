@@ -26,6 +26,8 @@ class ProductsController < ApplicationController
   def index
     @sort = SORTS.key?(params[:sort]) ? params[:sort] : DEFAULT_SORT
     @direction = %w[asc desc].include?(params[:direction]) ? params[:direction].to_sym : SORTS.fetch(@sort)[:direction]
+    @q = params[:q].presence
+    @brand_q = params[:brand_q].presence
 
     scope = case @sort
     when "brand" then Product.includes(:brand).left_joins(:brand)
@@ -33,6 +35,14 @@ class ProductsController < ApplicationController
                                .select("products.*, COUNT(tracking_events.id) AS event_count")
                                .group("products.id")
     else Product.includes(:brand)
+    end
+    # Bound, not interpolated - sanitize_sql_like escapes %/_ so a literal
+    # "%" in either term is searched for literally, not as a wildcard. See
+    # DESIGN_PROPOSAL_FINAL.md's Search section.
+    scope = scope.where("products.name ILIKE ?", "%#{Product.sanitize_sql_like(@q)}%") if @q
+    if @brand_q
+      scope = scope.left_joins(:brand) unless @sort == "brand"
+      scope = scope.where("brands.name ILIKE ?", "%#{Product.sanitize_sql_like(@brand_q)}%")
     end
 
     @products = paginate(scope.reorder(Arel.sql(SORTS.fetch(@sort)[:order]) => @direction))
