@@ -17,6 +17,24 @@ export default class extends Controller {
   declare readonly fieldTargets: HTMLInputElement[]
 
   timeout: number | null = null
+  currentFetch: AbortController | null = null
+
+  connect() {
+    window.addEventListener("popstate", this.onPopState)
+  }
+
+  disconnect() {
+    window.removeEventListener("popstate", this.onPopState)
+  }
+
+  // An arrow-function property, not a method, so `this` stays bound
+  // without a separate .bind() call - needed since this is passed
+  // directly to add/removeEventListener as a reference. Swaps in whatever
+  // the restored URL actually shows; doesn't push a new history entry,
+  // since we're responding to one the browser already navigated to.
+  onPopState = () => {
+    this.swap(window.location.href, { push: false })
+  }
 
   apply() {
     if (this.timeout) window.clearTimeout(this.timeout)
@@ -45,20 +63,31 @@ export default class extends Controller {
     if (!swapped) window.location.href = link.href
   }
 
-  async swap(url: string): Promise<boolean> {
+  async swap(url: string, { push = true }: { push?: boolean } = {}): Promise<boolean> {
+    // Cancel whatever's still in flight before starting a new one - without
+    // this, two quick sort/search triggers race, and whichever response
+    // happens to arrive last wins even if it isn't the last one requested.
+    this.currentFetch?.abort()
+    const controller = new AbortController()
+    this.currentFetch = controller
+
     let response
     try {
-      response = await fetch(url, { headers: { Accept: "text/html" } })
-    } catch {
+      response = await fetch(url, { headers: { Accept: "text/html" }, signal: controller.signal })
+    } catch (error) {
+      // Being superseded by a newer swap() isn't a failure - don't let
+      // sort() treat it as one and fall back to a real navigation.
+      if (error instanceof DOMException && error.name === "AbortError") return true
       return false // offline/network failure
     }
     if (!response.ok) return false
 
     const doc = new DOMParser().parseFromString(await response.text(), "text/html")
     const newResults = doc.querySelector('[data-live-search-target="results"]')
-    if (newResults) this.resultsTarget.replaceWith(document.importNode(newResults, true))
+    if (!newResults) return false // nothing to show - don't push a URL for a swap that didn't happen
+    this.resultsTarget.replaceWith(document.importNode(newResults, true))
 
-    history.pushState({}, "", url)
+    if (push) history.pushState({}, "", url)
     return true
   }
 }

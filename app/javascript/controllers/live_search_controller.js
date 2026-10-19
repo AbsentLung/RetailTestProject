@@ -2,6 +2,21 @@ import { Controller } from "@hotwired/stimulus";
 class live_search_controller_default extends Controller {
   static targets = ["results", "field"];
   timeout = null;
+  currentFetch = null;
+  connect() {
+    window.addEventListener("popstate", this.onPopState);
+  }
+  disconnect() {
+    window.removeEventListener("popstate", this.onPopState);
+  }
+  // An arrow-function property, not a method, so `this` stays bound
+  // without a separate .bind() call - needed since this is passed
+  // directly to add/removeEventListener as a reference. Swaps in whatever
+  // the restored URL actually shows; doesn't push a new history entry,
+  // since we're responding to one the browser already navigated to.
+  onPopState = () => {
+    this.swap(window.location.href, { push: false });
+  };
   apply() {
     if (this.timeout) window.clearTimeout(this.timeout);
     this.timeout = window.setTimeout(() => this.search(), 300);
@@ -26,18 +41,23 @@ class live_search_controller_default extends Controller {
     const swapped = await this.swap(link.href);
     if (!swapped) window.location.href = link.href;
   }
-  async swap(url) {
+  async swap(url, { push = true } = {}) {
+    this.currentFetch?.abort();
+    const controller = new AbortController();
+    this.currentFetch = controller;
     let response;
     try {
-      response = await fetch(url, { headers: { Accept: "text/html" } });
-    } catch {
+      response = await fetch(url, { headers: { Accept: "text/html" }, signal: controller.signal });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return true;
       return false;
     }
     if (!response.ok) return false;
     const doc = new DOMParser().parseFromString(await response.text(), "text/html");
     const newResults = doc.querySelector('[data-live-search-target="results"]');
-    if (newResults) this.resultsTarget.replaceWith(document.importNode(newResults, true));
-    history.pushState({}, "", url);
+    if (!newResults) return false;
+    this.resultsTarget.replaceWith(document.importNode(newResults, true));
+    if (push) history.pushState({}, "", url);
     return true;
   }
 }

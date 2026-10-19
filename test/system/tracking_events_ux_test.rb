@@ -51,4 +51,48 @@ class TrackingEventsUxTest < ApplicationSystemTestCase
     scroll_y = page.evaluate_script("window.scrollY")
     assert scroll_y > 0, "expected the page to land back on the tracking-events table (scrollY > 0), got #{scroll_y}"
   end
+
+  test "changing a filter keeps the active sort instead of silently resetting it" do
+    brand = Brand.create!(name: "UX Filter Sort Brand")
+    store_a = Store.create!(address: "A Filter Sort Ave")
+    store_b = Store.create!(address: "B Filter Sort Ave")
+    product = Product.create!(name: "UX Filter Sort Product", brand: brand)
+    30.times { |n| TrackingEvent.create!(product: product, store: store_a, event_time: (n + 1).hours.ago, inventory_present: true) }
+    30.times { |n| TrackingEvent.create!(product: product, store: store_b, event_time: (n + 1).hours.ago, inventory_present: true) }
+
+    visit product_path(product)
+    click_link "Store Address"
+    assert_current_path(/event_sort=store/, url: true)
+
+    # The filter form has no field for event_sort/event_direction - without
+    # carrying them forward, submitting any filter change would silently
+    # drop back to the default sort (event_time).
+    select "Yes", from: "inventory_present"
+
+    assert_current_path(/event_sort=store/, url: true)
+    assert_current_path(/inventory_present=yes/, url: true)
+  end
+
+  test "pressing Back after sorting the tracking-events table restores the previous order" do
+    brand = Brand.create!(name: "UX Back Button Brand")
+    store = Store.create!(address: "1 UX Back Button Ave")
+    product = Product.create!(name: "UX Back Button Product", brand: brand)
+    5.times { |n| TrackingEvent.create!(product: product, store: store, event_time: (n + 1).hours.ago, inventory_present: n.even?) }
+
+    visit product_path(product)
+    assert_selector "tbody tr", count: 5
+    original_order = all("tbody tr td:first-child").map(&:text)
+
+    click_link "Inventory Present?"
+    assert_current_path(/event_sort=inventory_present/, url: true)
+    refute_equal original_order, all("tbody tr td:first-child").map(&:text)
+
+    page.go_back
+
+    # assert_selector polls until it's true; a bare `all(...)` right after
+    # go_back can run while the popstate-triggered swap is still replacing
+    # the table, grabbing element references that go stale mid-read.
+    assert_selector "tbody tr:first-child td:first-child", text: original_order.first
+    assert_equal original_order, all("tbody tr td:first-child").map(&:text)
+  end
 end

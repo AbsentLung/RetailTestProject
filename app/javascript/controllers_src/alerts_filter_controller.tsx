@@ -93,7 +93,7 @@ function AlertsFilters() {
   const [prevCursor, setPrevCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function load(overrides: LoadOverrides = {}) {
+  async function load(overrides: LoadOverrides = {}, { push = true }: { push?: boolean } = {}) {
     const nextStatus = overrides.status ?? status
     const nextBrandId = overrides.brandId ?? brandId
     const nextSort = overrides.sort ?? sort
@@ -122,8 +122,13 @@ function AlertsFilters() {
     setPrevCursor(data.prev_cursor)
     setLoading(false)
 
-    const queryString = query.toString()
-    history.pushState({}, "", queryString ? `/alerts?${queryString}` : "/alerts")
+    // Pushing is skipped when responding to a popstate below - the browser
+    // already navigated there; pushing again would add a duplicate entry
+    // and Forward would never get past it.
+    if (push) {
+      const queryString = query.toString()
+      history.pushState({}, "", queryString ? `/alerts?${queryString}` : "/alerts")
+    }
   }
 
   useEffect(() => {
@@ -131,6 +136,29 @@ function AlertsFilters() {
     // Runs once on mount, reading the URL this page was actually loaded
     // with isn't needed here - the no-JS version already showed that page;
     // this is what takes over once React has actually mounted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    function handlePopState() {
+      const params = new URLSearchParams(window.location.search)
+      load(
+        {
+          status: params.get("status") ?? "",
+          brandId: params.get("brand_id") ?? "",
+          sort: params.get("sort") ?? DEFAULT_SORT,
+          direction: (params.get("direction") as "asc" | "desc" | null) ?? DEFAULT_DIRECTION,
+          after: params.get("after") ?? undefined,
+          before: params.get("before") ?? undefined,
+        },
+        { push: false },
+      )
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+    // Every field above comes from the popstate event itself, not from
+    // closed-over state, so the empty deps array (and the resulting stale
+    // `load` closure from the first render) is safe here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

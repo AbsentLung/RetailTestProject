@@ -277,6 +277,12 @@ td.num, th.num {
   width: 150px;
 }
 
+.filter-field select {
+  /* Extra room on the right so the browser's own dropdown arrow isn't
+     crowded against the text or the border. */
+  padding-right: 24px;
+}
+
 .btn-filter {
   font-family: var(--font-heading);
   font-weight: 600;

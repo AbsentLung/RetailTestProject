@@ -51,7 +51,7 @@ function AlertsFilters() {
   const [nextCursor, setNextCursor] = useState(null);
   const [prevCursor, setPrevCursor] = useState(null);
   const [loading, setLoading] = useState(true);
-  async function load(overrides = {}) {
+  async function load(overrides = {}, { push = true } = {}) {
     const nextStatus = overrides.status ?? status;
     const nextBrandId = overrides.brandId ?? brandId;
     const nextSort = overrides.sort ?? sort;
@@ -76,11 +76,31 @@ function AlertsFilters() {
     setNextCursor(data.next_cursor);
     setPrevCursor(data.prev_cursor);
     setLoading(false);
-    const queryString = query.toString();
-    history.pushState({}, "", queryString ? `/alerts?${queryString}` : "/alerts");
+    if (push) {
+      const queryString = query.toString();
+      history.pushState({}, "", queryString ? `/alerts?${queryString}` : "/alerts");
+    }
   }
   useEffect(() => {
     load();
+  }, []);
+  useEffect(() => {
+    function handlePopState() {
+      const params = new URLSearchParams(window.location.search);
+      load(
+        {
+          status: params.get("status") ?? "",
+          brandId: params.get("brand_id") ?? "",
+          sort: params.get("sort") ?? DEFAULT_SORT,
+          direction: params.get("direction") ?? DEFAULT_DIRECTION,
+          after: params.get("after") ?? void 0,
+          before: params.get("before") ?? void 0
+        },
+        { push: false }
+      );
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
   function handleSort(key, defaultDirection) {
     const newDirection = sort === key ? direction === "asc" ? "desc" : "asc" : defaultDirection;

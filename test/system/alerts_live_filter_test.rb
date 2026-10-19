@@ -51,6 +51,29 @@ class AlertsLiveFilterTest < ApplicationSystemTestCase
     assert_equal ["ZZZ Brand", "AAA Brand"], all("tbody tr td:first-child").map(&:text)
   end
 
+  test "pressing Back after sorting restores the previous order instead of leaving a stale table" do
+    brand_a = Brand.create!(name: "AAA Brand")
+    brand_z = Brand.create!(name: "ZZZ Brand")
+    store = Store.create!(address: "1 Back Button Ave")
+    make_alert(brand: brand_z, store: store, name: "Z Product")
+    make_alert(brand: brand_a, store: store, name: "A Product")
+
+    visit alerts_path
+    assert_selector "tbody tr", count: 2
+    original_order = all("tbody tr td:first-child").map(&:text)
+
+    click_link "Brand"
+    assert_selector "tbody tr:first-child td:first-child", text: "AAA Brand"
+
+    page.go_back
+
+    # Before a popstate listener existed, history.pushState changed the URL
+    # on Back but nothing re-fetched - the table stayed on the sorted-by-
+    # brand view even though the address bar said otherwise.
+    assert_selector "tbody tr:first-child td:first-child", text: original_order.first
+    assert_equal original_order, all("tbody tr td:first-child").map(&:text)
+  end
+
   private
 
   def make_alert(brand:, store:, name:)

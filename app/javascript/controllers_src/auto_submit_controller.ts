@@ -12,6 +12,11 @@ import { Controller } from "@hotwired/stimulus"
 // on the table instead of the top of the page) through a native GET form
 // submission - Chrome drops it. Serializing the fields ourselves keeps
 // the fragment under our control either way.
+// The field for which column/direction the tracking-events table is
+// currently sorted by - carried forward below, since the filter form
+// itself has no fields for it.
+const SORT_PARAMS = ["event_sort", "event_direction"]
+
 export default class extends Controller {
   submit() {
     const form = this.element.closest("form")
@@ -19,8 +24,18 @@ export default class extends Controller {
 
     const [path, fragment] = form.action.split("#")
     const params = new URLSearchParams()
+
+    // The active sort lives in the URL, not in this form - without
+    // carrying it forward, changing any filter would silently reset
+    // sorting back to the default.
+    const current = new URL(window.location.href)
+    for (const key of SORT_PARAMS) {
+      const value = current.searchParams.get(key)
+      if (value) params.set(key, value)
+    }
+
     for (const [key, value] of new FormData(form).entries()) {
-      params.append(key, String(value))
+      params.set(key, String(value))
     }
 
     const query = params.toString()

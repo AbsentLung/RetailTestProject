@@ -17,5 +17,11 @@ class StoresLiveSearchTest < ApplicationSystemTestCase
     assert_no_text "Prancing Pony"
     assert_equal "still-the-same-page", page.evaluate_script("window.name")
     assert_match(/q=Dragon/, page.current_url)
+
+    page.go_back
+
+    # Before a popstate listener existed, the URL went back to plain
+    # /stores but the filtered-out row never came back - nothing re-fetched.
+    assert_text "Prancing Pony"
   end
 end
