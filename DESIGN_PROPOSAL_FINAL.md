@@ -52,7 +52,7 @@ Five things worth architecting alongside the restyle, each with the actual datab
 
 ### Sorting
 
-Clicking a column header (e.g. "Tracking Events" on the products index) to sort by it. Scoped to the index pages specifically - see "Sorting and infinite scroll don't mix cheaply" below for why this doesn't extend to the event lists and alerts.
+Clicking a column header (e.g. "Tracking Events" on the products index) to sort by it. Originally scoped to the index pages only - see "Sorting and infinite scroll, revisited" below for why that scope didn't hold.
 
 - **Sorting by a stored column** (name, address, `triggered_at`): a plain `ORDER BY`. `products.name` and `stores.address` are already uniquely indexed; `alerts.triggered_at` isn't indexed today - the only index on `alerts` besides its foreign keys is the unique one on `second_event_id`. **Database changes: one new index, `(triggered_at)` on `alerts`, if alerts get sorted at volume** - the others need nothing new.
 - **Sorting by a computed count** (products by tracking-event count, brands by product count) is the harder case, worth naming the real tension rather than assuming a quick fix:
@@ -60,20 +60,18 @@ Clicking a column header (e.g. "Tracking Events" on the products index) to sort 
   - **Option 2 - a `counter_cache` column** (`products.tracking_events_count`). The textbook fix for "sort/filter by a count cheaply" - but not free here specifically, because of a tension already named in `CLAUDE.md`: Rails' `counter_cache` maintains itself via `after_create`/`after_destroy`, and this app's entire import performance story is built on `insert_all`, which skips callbacks entirely. A counter_cache column here needs a manual reconciliation step bolted onto the importer (a batch `UPDATE products SET tracking_events_count = (SELECT COUNT(*) ...)` after each import), not Rails keeping it in sync automatically. **Database changes: a new `integer, null: false, default: 0` column, plus an importer change to reconcile it - not just a migration.**
   - **Recommendation: Option 1 for now.** The join+group+order query is new code, but no new storage or reconciliation step, and the cost is already being paid today in a different shape. Revisit Option 2 only if the aggregate itself becomes the bottleneck independent of sorting - it already partially is (the documented 125ms / 84% `/products` cost in `IMPLEMENTATION_REPORT.md`).
 
-#### Sorting and infinite scroll don't mix cheaply
+#### Sorting and infinite scroll, revisited
 
-Every sortable column needs its own keyset cursor and, in the worst case, its own supporting index - sorting by name needs a cursor anchored on name, sorting by count needs one anchored on count (and a count that changes after every import makes that cursor awkward to reason about, on top of everything else). Combining "sort by any column" with "cursor-based infinite scroll" multiplies the complexity of both rather than adding them.
+The original call here was to keep sorting off alerts and the event lists entirely, since every sortable column needs its own keyset cursor and, in the worst case, its own supporting index - sorting by name needs a cursor anchored on name, a count needs one anchored on count, and so on. That reasoning about the cost was correct; the scope decision built from it didn't hold; sorting was added to alerts and the tracking-event lists anyway (`DESIGN_REVIEW.md` round 7).
 
-**Recommendation: keep the two separate.**
-- **Index pages** (products/stores/brands - 226/101/45 rows): sortable columns, plain offset pagination (or no pagination at all - these tables are small enough that it barely matters either way).
-- **Event lists and alerts** (the tables actually large enough for infinite scroll to matter): keyset infinite scroll, in one fixed order. Not sortable.
+What actually made that tractable: `KeysetPage` took the "own cursor per column" cost as a parameter, not a blocker - generalized once (direction, a qualified id column, a value extractor for joined/computed columns), then reused for five sortable alert columns and the tracking-event columns below, rather than hand-building a cursor per column. Index pages (products/stores/brands) stay on plain offset pagination regardless - they were never the ones with a cursor-cost problem to begin with.
 
-### Date range filtering
+### Date range filtering, and tracking-event filters more generally
 
-A `from`/`to` filter on time-series pages: price history, a product or store's tracking events.
+**Built**, on the product and store show pages' tracking-event lists: a `from`/`to` date range, an Inventory Present filter (yes/no), and - scoped to whichever dimension that page doesn't already fix - a Store filter on a product's page, a Product filter on a store's page. Sortable by Event Time, Inventory Present, and that same per-page dimension, using the same keyset mechanism alerts already uses (`DESIGN_REVIEW.md` round 7's generalized `KeysetPage`).
 
-- Implementation: `WHERE event_time BETWEEN ? AND ?`, scoped to the product or store already being viewed.
-- **Database changes: none.** The existing composite indexes (`[:product_id, :event_time]`, `[:store_id, :event_time]`) already have `event_time` as the trailing column - a range condition on it, within a fixed product or store, is an index range scan on an index that already exists. One case where the indexing already in place happens to support the new feature for free.
+- Implementation: `WHERE event_time >= ? AND event_time <= ?` for the range, scoped to the product or store already being viewed; plain equality for Inventory Present and the store/product filter.
+- **Database changes: none.** The existing composite indexes (`[:product_id, :event_time, :id]`, `[:store_id, :event_time, :id]`) already have `event_time` as a middle column and `id` trailing - a range condition on `event_time`, within a fixed product or store, is still an index range scan on an index that already exists. One case where the indexing already in place happens to support the new feature for free.
 
 ### Infinite scroll, and why it isn't just a visual choice
 
@@ -86,9 +84,9 @@ Infinite scroll and the pagination style already flagged as a 100x-scale concern
 - Alerts (ordered by `triggered_at`): **one new index**, `(triggered_at, id)` - doesn't exist today.
 - Tracking events / price history (ordered by `event_time`, scoped to a product or store): the keyset cursor is `(event_time, id)`, so the exact index is `(store_id, event_time, id)` / `(product_id, event_time, id)` - **one new column added to each existing composite index.** The current `(store_id, event_time)` / `(product_id, event_time)` get the scan most of the way there (narrows to the right store or product, gets into the right time range), but don't cover the `id` tiebreak for rows sharing the same `event_time` - without it, ties need an extra sort step rather than a single fully-ordered index scan.
 
-**Built, not just proposed.** A `turbo_frame_tag` was the plan here, but it doesn't actually fit: a `<turbo-frame>` placed inside a `<tbody>` (where the next batch of rows needs to land) gets foster-parented out of the table by the browser's own HTML parser, since custom elements aren't valid table content - the frame would end up rendered outside the table entirely, not inside it. Built instead with a small Stimulus controller (`app/javascript/controllers/infinite_scroll_controller.js` - Stimulus is the same already-unused-in-this-app dependency, just the piece of it that actually fits): it watches the existing "Next" link with an `IntersectionObserver`, and when that link scrolls into view, fetches the exact URL that link already points to - the same GET request a manual click would make - and appends the rows it gets back. The link itself is never removed or hidden; it still works as a normal link with JS off, keyboard-only, or if a fetch fails.
+**Built, then the auto-load reverted - the pagination underneath stayed.** A Stimulus controller that auto-loaded the next batch on scroll was built and worked correctly (see `DESIGN_REVIEW.md` round 6), but reviewing it in actual use, continuous scrolling with no visible page boundary read as "the page never ends," not as an efficiency win. Reverted to plain, click-through "Previous"/"Next" links at 50 rows per page (round 8). What's unchanged is the actual point of this section: alerts and the tracking-event lists are on keyset pagination, not `LIMIT`/`OFFSET`, so query cost stays flat regardless of how many pages someone clicks through, and the correctness property below still holds. Only the auto-load trigger is gone - the mechanism it was triggering is exactly what every "Next" click already uses.
 
-This means the GET-per-scroll question from `DESIGN_REVIEW.md`'s round 1 isn't hypothetical anymore - it's what every scroll step on `/alerts` and the tracking-event lists actually does. Round 1's measurement (single-digit milliseconds at this app's real row counts, regardless of offset) was taken against `LIMIT`/`OFFSET`; the keyset queries built here are cheaper still, since their cost doesn't grow with scroll depth at all. The "fetch the whole page just to pull a `<tbody>` out of it" approach is not bandwidth-efficient - every request re-downloads a full HTML document (header, nav, styles already cached by the browser, but still a full response body) rather than a lean fragment or JSON payload - but it reuses the exact route and view already tested, with no new rendering path to get wrong. Bandwidth, not query cost, is the actual tradeoff being made.
+This means the GET-per-scroll question from `DESIGN_REVIEW.md`'s round 1 isn't hypothetical - every "Next" click on `/alerts` and the tracking-event lists is one. Round 1's measurement (single-digit milliseconds at this app's real row counts, regardless of offset) was taken against `LIMIT`/`OFFSET`; the keyset queries built here are cheaper still, since their cost doesn't grow with depth at all.
 
 #### Pagination vs. keyset (cursor): the actual tradeoff
 
@@ -107,11 +105,13 @@ That "correctness under concurrent writes" row isn't just a performance differen
 
 #### Usability, not just the query
 
-Getting the database side right doesn't automatically make infinite scroll pleasant to use. Three real pitfalls worth designing around from the start, not discovering after:
+This section named three real infinite-scroll pitfalls to design around. After round 8's revert to plain pagination links, all three are moot in the way that matters most: a "Next" click is a real page navigation, not a scroll-triggered fetch, so none of these are failure modes of what's actually built.
 
-- **The browser Back button.** Navigating away and back typically resets a scroll-loaded list to its first batch, discarding however far the user had scrolled. **Not solved** in what's built - the URL never changes as rows get appended, so Back returns to the first batch, same as the generic risk described here. Preserving scroll position (via `history.state` or a `?cursor=` reflected in the URL) would need more work than this bonus round's scope covered.
-- **A "Load more" button fallback.** Auto-loading on scroll alone excludes anyone navigating by keyboard or with JS-dependent scroll triggers disabled, and removes the one thing that puts a natural pause on how much gets fetched in one sitting. **Solved by construction**, not as an afterthought: the auto-loader watches the real "Next" link rather than replacing it, so the same link that triggers an automatic load is also a normal, clickable fallback the whole time.
-- **The footer becomes unreachable.** If content keeps loading as the user approaches the bottom of the page, the footer (and anything in it) never actually arrives. **Solved**: loading stops the moment there's no further "Next" link to watch, so the footer becomes reachable again once the last real batch has loaded - there's no infinite tail to get stuck behind.
+- **The browser Back button.** A real navigation's Back button already returns to exactly where it was, the same as every other page in this app - nothing special to solve.
+- **A "Load more" button fallback.** There's no auto-loading to need a fallback for - the "Next" link already is the only way forward, for everyone, with or without JS.
+- **The footer becomes unreachable.** Content only loads on a real click, so the footer is always reachable - there's no tail that keeps growing underneath it.
+
+Kept here as a record of what was actually considered mid-build (`DESIGN_REVIEW.md` round 6), not because any of it still describes a real risk.
 
 ### CSV export
 
@@ -119,9 +119,9 @@ Exporting the current alert or price-history view back out as a CSV - fitting, g
 
 None of the four are part of the visual-redesign bonus by default - naming them here so they're a deliberate "not now" rather than something that just never came up.
 
-## Pattern choices considered and declined
+## Pattern choices: declined, then one of them reversed
 
-Three suggestions came up for the pieces above. All three are real, reasonable choices elsewhere - here's the actual reasoning for not using them in this project.
+Three suggestions came up for the pieces above. Two stayed declined; the third - React - was revisited after this section was first written and adopted in a scoped way. Rather than rewrite the original reasoning as if it never existed, it's kept below as it was, with the reversal stated plainly next to it - see `DESIGN_REVIEW.md` round 8 for the full account of why.
 
 ### Turbo Frames (Hotwire) vs. React
 
@@ -134,11 +134,25 @@ Infinite scroll, live search, and sortable columns without a full page reload al
 | Fits keyset-paginated infinite scroll | Directly - a `turbo_frame_tag` lazy-loaded via its own `src` is the standard pattern | Works, but needs a JSON API underneath either way, since React doesn't render ERB |
 | Consistency with the rest of the codebase | High - the whole app is server-rendered today | Low - one feature would work on a fundamentally different architecture from every other page |
 
-**Declined for this project.** React is a reasonable choice for a product where rich client-side interaction is a first-class requirement. That's not what this is: a Rails take-home where every other page is server-rendered ERB, and the one framework capable of the same interactive result with zero new dependencies is already sitting unused in the importmap. Adopting React here would mean one feature working on a completely different architecture from the rest of the app, for no capability this app actually needs.
+**Declined for this project, as it stood then.** React is a reasonable choice for a product where rich client-side interaction is a first-class requirement. That's not what this was at the time: a Rails take-home where every other page is server-rendered ERB, and the one framework capable of the same interactive result with zero new dependencies was already sitting unused in the importmap. The `turbo_frame_tag` half of this comparison also turned out to be wrong on its own terms once actually built - see the infinite-scroll section above - which doesn't change this verdict, but is worth knowing before weighing it.
 
-**React Native specifically** (raised as "an easy path to a mobile app later") doesn't actually shorten that path the way it might seem to. React Native doesn't render React *web* views - there's no `<div>`/`<table>` in React Native, only native components (`<View>`, `<FlatList>`, etc.) - so a future native app's UI gets built from scratch regardless of what today's website uses. What *does* make a future native app easier is a clean JSON API underneath, which is a backend concern, independent of the website's rendering choice. See the forward-looking note below.
+**Reversed, scoped to the alerts filter UI specifically.** Once TypeScript was adopted (below) for unrelated reasons, the "no build pipeline" argument against React was already gone - the build step would exist either way. The remaining argument (consistency with a server-rendered app) still holds for everything that doesn't need a framework, which is still true of most of this app. React was adopted for exactly the one place that had real, multi-piece client state to keep in sync (filters, sort, and a pagination cursor, all without a reload) - not as a replacement for server-rendered ERB generally. The table above is still an accurate comparison of the two options; what changed is that one feature's actual requirements grew past where the "Declined" verdict was reasoning from.
 
-### Plain CSS (current) vs. Sass
+**React Native specifically** (raised separately, as "an easy path to a mobile app later") doesn't actually shorten that path the way it might seem to. React Native doesn't render React *web* views - there's no `<div>`/`<table>` in React Native, only native components (`<View>`, `<FlatList>`, etc.) - so a future native app's UI gets built from scratch regardless of what today's website uses. What *does* make a future native app easier is a clean JSON API underneath, which is a backend concern, independent of the website's rendering choice. See the forward-looking note below. This reasoning is unaffected by the React reversal above - adopting React for one web UI island says nothing about React Native for a future mobile app.
+
+### Plain JavaScript (original) vs. TypeScript
+
+Raised directly: TypeScript "catches mistakes better when using AI." The comparison is really about what it costs to get that, not whether type errors are worth catching.
+
+| | Plain JavaScript | TypeScript |
+|---|---|---|
+| New dependency | None - `importmap-rails` serves `app/javascript/**` straight to the browser | A compiler (`tsc`) plus a transform step (`esbuild`, for JSX) before anything can be served |
+| Catches | Nothing before runtime | Type mismatches, typos in prop/field names, wrong argument counts - exactly the mistakes that are easy to introduce and easy to miss reviewing AI-generated diffs |
+| What changes for importmap-rails | Nothing - files are served as-written | Still served as plain `.js` - source moves to `app/javascript/controllers_src/*.ts(x)`, compiled output lands where importmap already expects it |
+
+**Adopted**, reversing the "no build pipeline" stance this section opened with. The honest accounting: this app now has a build step it didn't have before, and that step has to actually run (and its output committed, or regenerated) for the two interactive controllers to work at all - a real new way for the app to be broken that didn't exist when everything was server-rendered ERB and unprocessed JS. Worth it specifically because the stated reason (catching mistakes in AI-assisted changes before they reach the browser) is a real, recurring risk this project has already hit elsewhere in less visible ways - and once paid for TypeScript, the same build step is most of what React needed too (below).
+
+### Postgres search (`ILIKE` / `pg_trgm`) vs. Elasticsearch
 
 | | Plain CSS (current) | Sass |
 |---|---|---|
