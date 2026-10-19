@@ -29,11 +29,16 @@ module ApplicationHelper
   # showing which direction it's currently sorted.
   def sort_header(label, url:, active:, direction: nil, th_class: nil)
     text = active ? "#{label} #{direction == :asc ? "▲" : "▼"}" : label
-    # data-turbo="false": Turbo Drive's own visit doesn't resolve a #anchor
-    # in the URL the way a real page load does - a sort click that lands on
-    # a specific table instead of the top of the page needs the anchor to
-    # actually work, so this opts out of Turbo for a real navigation.
-    content_tag(:th, class: th_class) { link_to(text, url, class: "sort-link", data: { turbo: false }) }
+    # live-search#sort fetches this link's own href and swaps the results
+    # region in place - no reload, no scroll jump, same as Alerts' React UI.
+    # data-turbo="false" is the fallback for when that doesn't fire (JS
+    # disabled, or this page has no live-search controller on it): without
+    # it, Turbo Drive's own "visit" doesn't resolve a #anchor in the URL the
+    # way a real page load does, and a sort click that's supposed to land
+    # back on a specific table would land at the top of the page instead.
+    content_tag(:th, class: th_class) do
+      link_to(text, url, class: "sort-link", data: { turbo: false, action: "live-search#sort" })
+    end
   end
 
   def nav_link(text, path, section)

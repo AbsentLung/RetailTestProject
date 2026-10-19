@@ -46,7 +46,7 @@
   </div>
 <% end %>
 
-<div class="card" id="tracking-events">
+<div class="card" id="tracking-events" data-controller="live-search">
   <h2>Tracking Events</h2>
   <%= form_with url: product_path(@product, anchor: "tracking-events"), method: :get, local: true, class: "filter-row", data: { controller: "auto-submit" } do %>
     <div class="filter-field">
@@ -72,30 +72,32 @@
       <%= link_to "Clear filters", product_path(@product, anchor: "tracking-events"), class: "nav-link", data: { turbo: false } %>
     <% end %>
   <% end %>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <%= sort_header "Event Time", url: event_sort_url("event_time"), active: @event_sort == "event_time", direction: @event_direction %>
-          <%= sort_header "Inventory Present?", url: event_sort_url("inventory_present"), active: @event_sort == "inventory_present", direction: @event_direction %>
-          <%= sort_header "Store Address", url: event_sort_url("store"), active: @event_sort == "store", direction: @event_direction %>
-        </tr>
-      </thead>
-      <tbody>
-        <% @events.each do |event| %>
+  <div data-live-search-target="results">
+    <div class="table-wrap">
+      <table>
+        <thead>
           <tr>
-            <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
-            <td><%= event.inventory_present ? "Yes" : "No" %></td>
-            <td><%= event.store&.address %></td>
+            <%= sort_header "Event Time", url: event_sort_url("event_time"), active: @event_sort == "event_time", direction: @event_direction %>
+            <%= sort_header "Inventory Present?", url: event_sort_url("inventory_present"), active: @event_sort == "inventory_present", direction: @event_direction %>
+            <%= sort_header "Store Address", url: event_sort_url("store"), active: @event_sort == "store", direction: @event_direction %>
           </tr>
-        <% end %>
-      </tbody>
-    </table>
-    <% if @events.empty? %>
-      <p class="empty-state">No tracking events match these filters.</p>
-    <% end %>
+        </thead>
+        <tbody>
+          <% @events.each do |event| %>
+            <tr>
+              <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+              <td><%= event.inventory_present ? "Yes" : "No" %></td>
+              <td><%= event.store&.address %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @events.empty? %>
+        <p class="empty-state">No tracking events match these filters.</p>
+      <% end %>
+    </div>
+    <%= keyset_pagination_links(@events_page) %>
   </div>
-  <%= keyset_pagination_links(@events_page) %>
 </div>
 
 <nav>
