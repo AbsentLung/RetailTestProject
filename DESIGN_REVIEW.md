@@ -56,35 +56,6 @@ A second review pass on `DESIGN_PROPOSAL.md` as it stood after round 2, with spe
 
 **Added: a suggested scope**, not adopted automatically - Option A (responsive, optional dark theme via the same CSS custom properties already in use), alerts filters (open/resolved, by brand), keyset infinite scroll on tracking events and alerts specifically, and CSV export of alerts as a small optional add. Name search and count sorting skipped by default: real implementation cost, on tables small enough today that the payoff is mostly saving a page-flip.
 
-## Round 4 — Turbo Frames vs. React, and plain CSS vs. Sass, moved here from the proposal
-
-**What changed.** `DESIGN_PROPOSAL_FINAL.md`'s "Pattern choices considered and declined" section carried two full comparison tables plus the reasoning for each. Moved here instead - the proposal states the two decisions and points here for the detail, rather than carrying the detail itself.
-
-### Turbo Frames (Hotwire) vs. React
-
-Infinite scroll, live search, and sortable columns without a full page reload all need *some* client-side interactivity. The two real candidates:
-
-| | Turbo Frames / Hotwire | React |
-|---|---|---|
-| New dependency | None - already in this app's importmap, unused | A full JS framework, plus a build pipeline this app doesn't have |
-| Rendering model | Same as the rest of the app - server-rendered ERB, swapped in fragments | A second, parallel rendering model alongside the existing ERB views |
-| Fits keyset-paginated infinite scroll | Directly - a `turbo_frame_tag` lazy-loaded via its own `src` is the standard pattern | Works, but needs a JSON API underneath either way, since React doesn't render ERB |
-| Consistency with the rest of the codebase | High - the whole app is server-rendered today | Low - one feature would work on a fundamentally different architecture from every other page |
-
-**Declined for this project.** React is a reasonable choice for a product where rich client-side interaction is a first-class requirement. That's not what this is: a Rails take-home where every other page is server-rendered ERB, and the one framework capable of the same interactive result with zero new dependencies is already sitting unused in the importmap. Adopting React here would mean one feature working on a completely different architecture from the rest of the app, for no capability this app actually needs.
-
-**React Native specifically** (raised as "an easy path to a mobile app later") doesn't actually shorten that path the way it might seem to. React Native doesn't render React *web* views - there's no `<div>`/`<table>` in React Native, only native components (`<View>`, `<FlatList>`, etc.) - so a future native app's UI gets built from scratch regardless of what today's website uses. What *does* make a future native app easier is a clean JSON API underneath, which is a backend concern, independent of the website's rendering choice. See the forward-looking note in `DESIGN_PROPOSAL_FINAL.md`.
-
-### Plain CSS (current) vs. Sass
-
-| | Plain CSS (current) | Sass |
-|---|---|---|
-| New dependency | None - the existing Sprockets pipeline | `dartsass-rails`, or a Node build step |
-| Theming mechanism | CSS custom properties - one token set, swapped per theme or per design option, already how all three options above and the house artifact style work | Variables + mixins - a different mechanism for the same job |
-| What it would add here | - | Nesting, mixins - neither used by any of the three proposed designs |
-
-**Declined for this project.** Sass earns its place when a stylesheet is complex enough that nesting and mixins meaningfully reduce duplication. None of the three design options need that - each is a single token set (palette plus two or three type roles) applied through CSS custom properties, which is already doing the real work (theme-swapping) in this app's existing artifacts. Adding a build-step dependency for authoring conveniences nothing here needs doesn't pay for itself.
-
 ---
 
 **A note on naming, after round 3.** `DESIGN_PROPOSAL.md` is now two files, matching how `INITIAL_PROPOSAL.md` / `REVIEWED_PROPOSAL.md` / `FINAL_PROPOSAL.md` work for the main feature: `DESIGN_PROPOSAL_INITIAL.md` is frozen at exactly the state before round 3's edits (rounds 1 and 2 were always clarified here, never edited into the document itself, so nothing changes there); `DESIGN_PROPOSAL_FINAL.md` carries round 3's corrections and the suggested scope, and is the one that keeps getting updated as review continues. The references to `DESIGN_PROPOSAL.md` by its old name in rounds 1-3 above are left as they were written, since that was its real name at the time.
