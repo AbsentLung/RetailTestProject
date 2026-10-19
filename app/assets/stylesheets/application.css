@@ -1,15 +1,280 @@
 /*
- * This is a manifest file that'll be compiled into application.css, which will include all the files
- * listed below.
- *
- * Any CSS (and SCSS, if configured) file within this directory, lib/assets/stylesheets, or any plugin's
- * vendor/assets/stylesheets directory can be referenced here using a relative path.
- *
- * You're free to add application-wide styles to this file and they'll appear at the bottom of the
- * compiled file so the styles you add here take precedence over styles defined in any other CSS
- * files in this directory. Styles in this file should be added after the last require_* statement.
- * It is generally better to create a new file per style scope.
- *
- *= require_tree .
+ * Quiet Ledger (Option A), from DESIGN_PROPOSAL_FINAL.md. One token set,
+ * swapped by prefers-color-scheme - no manual toggle, no new dependency.
  *= require_self
  */
+
+:root {
+  --color-bg: #F6F7F9;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #ECEFF2;
+  --color-ink: #1C2430;
+  --color-ink-muted: #5B6675;
+  --color-border: #DDE1E6;
+  --color-accent: #146C5F;
+  --color-accent-contrast: #FFFFFF;
+  --color-alert-open-bg: #F6DEDC;
+  --color-alert-open-ink: #8A2E24;
+  --color-alert-resolved-bg: #DCEDE1;
+  --color-alert-resolved-ink: #286142;
+
+  --font-heading: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius: 8px;
+  --shadow-card: 0 1px 2px rgba(28, 36, 48, 0.06), 0 1px 1px rgba(28, 36, 48, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #12161C;
+    --color-surface: #1A212B;
+    --color-surface-muted: #222B37;
+    --color-ink: #E7EAEE;
+    --color-ink-muted: #9AA3AF;
+    --color-border: #2B3440;
+    --color-accent: #3FA393;
+    --color-accent-contrast: #0B1A17;
+    --color-alert-open-bg: #3A2320;
+    --color-alert-open-ink: #F0A69C;
+    --color-alert-resolved-bg: #1E3327;
+    --color-alert-resolved-ink: #8FD6A8;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.125rem;
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+/* ---------- Layout ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.site-header-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--color-ink);
+}
+
+.site-nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  color: var(--color-ink-muted);
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible {
+  text-decoration: none;
+  background: var(--color-surface-muted);
+}
+
+.nav-link.active {
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+}
+
+.site-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+/* ---------- Cards ---------- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.card > h2:first-child {
+  margin-top: 0;
+}
+
+.field {
+  margin-bottom: 10px;
+}
+
+.field-label {
+  color: var(--color-ink-muted);
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+/* ---------- Tables ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th, td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+thead th {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-muted);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+
+td.num, th.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ---------- Status pills ---------- */
+
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pill-open {
+  background: var(--color-alert-open-bg);
+  color: var(--color-alert-open-ink);
+}
+
+.pill-resolved {
+  background: var(--color-alert-resolved-bg);
+  color: var(--color-alert-resolved-ink);
+}
+
+/* ---------- Pagination ---------- */
+
+.pagination {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+  font-weight: 500;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 640px) {
+  .site-header-inner {
+    padding: 12px 16px;
+  }
+
+  .site-main {
+    padding: 20px 16px 40px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+  }
+}

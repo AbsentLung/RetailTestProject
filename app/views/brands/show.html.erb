@@ -1,60 +1,71 @@
-<h1><%= @brand.name %></h1>
+<div class="page-header">
+  <h1><%= @brand.name %></h1>
+</div>
 
-<p>
-  <strong>Total Products:</strong>
-  <%= @brand.products.size %>
-</p>
-
-<p>
-  <strong><%= pluralize(@open_alerts_count, "open alert") %></strong>
-  <%= link_to "(view all alerts)", alerts_path %>
-</p>
+<div class="card">
+  <div class="field">
+    <span class="field-label">Total Products:</span>
+    <%= @brand.products.size %>
+  </div>
+  <div class="field">
+    <span class="field-label"><%= pluralize(@open_alerts_count, "open alert") %></span>
+    <%= link_to "(view all alerts)", alerts_path %>
+  </div>
+</div>
 
 <% if @alerts.any? %>
-  <h2>Recent Alerts</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Store</th>
-        <th>Triggered</th>
-        <th>Status</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @alerts.each do |alert| %>
-        <tr>
-          <td><%= alert.product.name %></td>
-          <td><%= alert.store.address %></td>
-          <td><%= alert.triggered_at.strftime("%Y-%m-%d") %></td>
-          <td><%= alert.resolved_at ? "Resolved #{alert.resolved_at.strftime('%Y-%m-%d')}" : "Ongoing" %></td>
-          <td><%= link_to "View", alert_path(alert) %></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
+  <div class="card">
+    <h2>Recent Alerts</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Store</th>
+            <th>Triggered</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @alerts.each do |alert| %>
+            <tr>
+              <td><%= alert.product.name %></td>
+              <td><%= alert.store.address %></td>
+              <td><%= alert.triggered_at.strftime("%Y-%m-%d") %></td>
+              <td><%= alert_status_pill(alert) %></td>
+              <td><%= link_to "View", alert_path(alert) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
 <% end %>
 
-<h2>Products</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Tracking Events</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @brand.products.each do |product| %>
-      <tr>
-        <td><%= product.name %></td>
-        <td><%= @event_counts.fetch(product.id, 0) %></td>
-        <td><%= link_to "View Product", product_path(product) %></td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
+<div class="card">
+  <h2>Products</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th class="num">Tracking Events</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @brand.products.each do |product| %>
+          <tr>
+            <td><%= product.name %></td>
+            <td class="num"><%= @event_counts.fetch(product.id, 0) %></td>
+            <td><%= link_to "View Product", product_path(product) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <nav>
   <%= link_to "Back to Brands", brands_path %> |

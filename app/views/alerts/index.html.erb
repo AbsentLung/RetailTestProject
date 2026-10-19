@@ -1,30 +1,36 @@
-<h1>Alerts (page <%= params[:page].to_i.clamp(1..) %>)</h1>
+<div class="page-header">
+  <h1>Alerts (page <%= params[:page].to_i.clamp(1..) %>)</h1>
+</div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Brand</th>
-      <th>Product</th>
-      <th>Store</th>
-      <th>Triggered</th>
-      <th>Status</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @alerts.first(Paginatable::PER_PAGE).each do |alert| %>
-      <tr>
-        <td><%= link_to alert.brand.name, brand_path(alert.brand) %></td>
-        <td><%= link_to alert.product.name, product_path(alert.product) %></td>
-        <td><%= link_to alert.store.address, store_path(alert.store) %></td>
-        <td><%= alert.triggered_at.strftime("%Y-%m-%d") %></td>
-        <td><%= alert.resolved_at ? "Resolved #{alert.resolved_at.strftime('%Y-%m-%d')}" : "Ongoing" %></td>
-        <td><%= link_to "View", alert_path(alert) %></td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
-<%= pagination_links(@alerts) %>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Brand</th>
+          <th>Product</th>
+          <th>Store</th>
+          <th>Triggered</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @alerts.first(Paginatable::PER_PAGE).each do |alert| %>
+          <tr>
+            <td><%= link_to alert.brand.name, brand_path(alert.brand) %></td>
+            <td><%= link_to alert.product.name, product_path(alert.product) %></td>
+            <td><%= link_to alert.store.address, store_path(alert.store) %></td>
+            <td><%= alert.triggered_at.strftime("%Y-%m-%d") %></td>
+            <td><%= alert_status_pill(alert) %></td>
+            <td><%= link_to "View", alert_path(alert) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <%= pagination_links(@alerts) %>
+</div>
 
 <nav>
   <%= link_to "Products", products_path %> |
