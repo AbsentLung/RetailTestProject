@@ -113,10 +113,9 @@ class KeysetPageTest < ActiveSupport::TestCase
   # column and a computed boolean, respectively - neither is a plain
   # attribute KeysetPage's default `row.public_send(column)` extractor can
   # read, so each needs its own `value:` proc and (for the joined case) a
-  # qualified id_column to stay unambiguous. These were verified against
-  # real data via bin/rails runner during review, round 7 - committed here
-  # so that verification survives as a regression test, not just a
-  # one-off script.
+  # qualified id_column to stay unambiguous. Verified against real data via
+  # `bin/rails runner`, then committed here as a regression test rather
+  # than left as a one-off script.
   def make_alert(brand:, store:, triggered_at:, resolved_at: nil)
     product = Product.create!(name: "Product #{SecureRandom.hex(4)}", brand: brand)
     first = TrackingEvent.create!(product: product, store: store, event_time: triggered_at - 1.hour, inventory_present: false)

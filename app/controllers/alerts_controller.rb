@@ -4,10 +4,8 @@ class AlertsController < ApplicationController
   STATUSES = %w[open resolved].freeze
 
   # Each sort needs its own cursor column, matching the real table/join it
-  # reads from - see DESIGN_PROPOSAL_FINAL.md's "Sorting and infinite scroll
-  # don't mix cheaply" note, now revised in DESIGN_REVIEWED_PROPOSAL.md (round 7) now
-  # that this combination is actually built. "status" sorts on a computed
-  # boolean (resolved_at IS NOT NULL) rather than resolved_at itself, since
+  # reads from. "status" sorts on a computed boolean
+  # (resolved_at IS NOT NULL) rather than resolved_at itself, since
   # resolved_at is NULL for every open alert and NULL never satisfies a
   # keyset "<"/">" comparison - a boolean expression is never NULL, so this
   # sidesteps that without a three-column cursor.
