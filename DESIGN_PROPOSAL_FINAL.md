@@ -119,32 +119,7 @@ None of the four are part of the visual-redesign bonus by default - naming them 
 
 ## Pattern choices considered and declined
 
-Two suggestions came up for the interactive pieces above. Both are real, reasonable choices elsewhere - here's the actual reasoning for not using them in this project.
-
-### Turbo Frames (Hotwire) vs. React
-
-Infinite scroll, live search, and sortable columns without a full page reload all need *some* client-side interactivity. The two real candidates:
-
-| | Turbo Frames / Hotwire | React |
-|---|---|---|
-| New dependency | None - already in this app's importmap, unused | A full JS framework, plus a build pipeline this app doesn't have |
-| Rendering model | Same as the rest of the app - server-rendered ERB, swapped in fragments | A second, parallel rendering model alongside the existing ERB views |
-| Fits keyset-paginated infinite scroll | Directly - a `turbo_frame_tag` lazy-loaded via its own `src` is the standard pattern | Works, but needs a JSON API underneath either way, since React doesn't render ERB |
-| Consistency with the rest of the codebase | High - the whole app is server-rendered today | Low - one feature would work on a fundamentally different architecture from every other page |
-
-**Declined for this project.** React is a reasonable choice for a product where rich client-side interaction is a first-class requirement. That's not what this is: a Rails take-home where every other page is server-rendered ERB, and the one framework capable of the same interactive result with zero new dependencies is already sitting unused in the importmap. Adopting React here would mean one feature working on a completely different architecture from the rest of the app, for no capability this app actually needs.
-
-**React Native specifically** (raised as "an easy path to a mobile app later") doesn't actually shorten that path the way it might seem to. React Native doesn't render React *web* views - there's no `<div>`/`<table>` in React Native, only native components (`<View>`, `<FlatList>`, etc.) - so a future native app's UI gets built from scratch regardless of what today's website uses. What *does* make a future native app easier is a clean JSON API underneath, which is a backend concern, independent of the website's rendering choice. See the forward-looking note below.
-
-### Plain CSS (current) vs. Sass
-
-| | Plain CSS (current) | Sass |
-|---|---|---|
-| New dependency | None - the existing Sprockets pipeline | `dartsass-rails`, or a Node build step |
-| Theming mechanism | CSS custom properties - one token set, swapped per theme or per design option, already how all three options above and the house artifact style work | Variables + mixins - a different mechanism for the same job |
-| What it would add here | - | Nesting, mixins - neither used by any of the three proposed designs |
-
-**Declined for this project.** Sass earns its place when a stylesheet is complex enough that nesting and mixins meaningfully reduce duplication. None of the three design options need that - each is a single token set (palette plus two or three type roles) applied through CSS custom properties, which is already doing the real work (theme-swapping) in this app's existing artifacts. Adding a build-step dependency for authoring conveniences nothing here needs doesn't pay for itself.
+Two suggestions came up for the interactive pieces above - React (including React Native, for a possible future mobile app) in place of Turbo Frames, and Sass in place of plain CSS. Both declined for this project; the comparison and the actual reasoning for each is in `DESIGN_REVIEW.md` rather than repeated here.
 
 ## A forward-looking note, not built now
 
