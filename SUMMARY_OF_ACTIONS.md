@@ -5,7 +5,7 @@ The key decisions themselves are in `README.md`. This is the longer version: how
 ## The result, in numbers
 
 - **3 objectives, all addressed**: price tracking as a structurally independent table; an alert system ordered by `event_time` with one alert per streak; measured performance work on both the import path and every read path.
-- **~44 seconds** end-to-end for the real 1,000,000-row import, including alert generation — down from an extrapolated ~30 minutes for the original row-by-row approach.
+- **~44 seconds** end-to-end for the real 1,000,000-row import, including alert generation — down from an extrapolated ~30 minutes for the original row-by-row approach; the import step alone, measured against a schema-matched benchmark (indexes and foreign keys included on both sides), is **~51.6x faster**.
 - **31,447 alerts**, exact, against the real imported data.
 - **~283x faster** on the busiest store's page: 6 queries / 21ms, down from a measured 20,341 queries / 5,946.9ms.
 - **34 tests, 0 failures**, weighted toward the logic the review process identified as actually risky.
