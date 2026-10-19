@@ -66,7 +66,7 @@ Alerts and the tracking-event lists combine sorting with keyset pagination. Ever
 
 ### Date range filtering, and tracking-event filters more generally
 
-**Built**, on the product and store show pages' tracking-event lists: a `from`/`to` date range, an Inventory Present filter (yes/no), and - scoped to whichever dimension that page doesn't already fix - a Store filter on a product's page, a Product filter on a store's page. Sortable by Event Time, Inventory Present, and that same per-page dimension, using the same keyset mechanism alerts already uses (`DESIGN_REVIEW.md` round 7's generalized `KeysetPage`).
+**Built**, on the product and store show pages' tracking-event lists: a `from`/`to` date range, an Inventory Present filter (yes/no), and - scoped to whichever dimension that page doesn't already fix - a Store filter on a product's page, a Product filter on a store's page. Sortable by Event Time, Inventory Present, and that same per-page dimension, using the same keyset mechanism alerts already uses (`DESIGN_REVIEWED_PROPOSAL.md` round 7's generalized `KeysetPage`).
 
 - Implementation: `WHERE event_time >= ? AND event_time <= ?` for the range, scoped to the product or store already being viewed; plain equality for Inventory Present and the store/product filter.
 - **Database changes: none.** The existing composite indexes (`[:product_id, :event_time, :id]`, `[:store_id, :event_time, :id]`) already have `event_time` as a middle column and `id` trailing - a range condition on `event_time`, within a fixed product or store, is still an index range scan on an index that already exists. One case where the indexing already in place happens to support the new feature for free.
@@ -81,7 +81,7 @@ Alerts and the tracking-event lists combine sorting with keyset pagination. Ever
 - Tracking events / price history (ordered by `event_time`, scoped to a product or store): the keyset cursor is `(event_time, id)`, so the index is `(store_id, event_time, id)` / `(product_id, event_time, id)` - `id` added as a trailing column to each existing composite index. The prior 2-column versions (`(store_id, event_time)` / `(product_id, event_time)`) got the scan most of the way there on their own, but didn't cover the `id` tiebreak for rows sharing the same `event_time` - without it, ties needed an extra sort step rather than a single fully-ordered index scan.
 - Alerts sorted by brand, product, or store: **no supporting index exists for this one.** The keyset comparison needs an index spanning the joined table's name column and `alerts.id` together; `products.name` and `stores.address` are uniquely indexed on their own, `brands.name` isn't indexed at all, and neither composes with `alerts.id` across a join. Correct today (verified against real data), not a single ordered index scan - a join, sort, and limit instead. Fine at 31k alerts; worth a real index if this table's row count or sort-by-name traffic both grow a lot.
 
-The GET-per-scroll question from `DESIGN_REVIEW.md`'s round 1 applies directly here - every "Next" click on `/alerts` and the tracking-event lists is one. Round 1's measurement (single-digit milliseconds at this app's real row counts, regardless of offset) was taken against `LIMIT`/`OFFSET`; the keyset queries here are cheaper still, since their cost doesn't grow with depth at all.
+The GET-per-scroll question from `DESIGN_REVIEWED_PROPOSAL.md`'s round 1 applies directly here - every "Next" click on `/alerts` and the tracking-event lists is one. Round 1's measurement (single-digit milliseconds at this app's real row counts, regardless of offset) was taken against `LIMIT`/`OFFSET`; the keyset queries here are cheaper still, since their cost doesn't grow with depth at all.
 
 #### Pagination vs. keyset (cursor): the actual tradeoff
 
@@ -100,9 +100,13 @@ Built on keyset pagination from the start, not `LIMIT`/`OFFSET`. The extra cost 
 
 ### CSV export
 
-Exporting the current alert or price-history view back out as a CSV - fitting, given the whole app exists to *import* CSVs. **Database changes: none** - this reads the same data already being queried for display.
+Exporting the current alert view back out as a CSV - fitting, given the whole app exists to *import* CSVs. **Database changes: none** - this reads the same filtered, sorted scope already built for the HTML view (see the `/alerts.json` data path above), not a separate export-specific query.
 
-None of the five are part of the visual-redesign bonus by default - naming them here so they're a deliberate "not now" rather than something that just never came up.
+Built with `CSV.generate`, which holds the whole export as one string in memory before sending it - fine at today's row count, a real scaling limit worth naming now rather than rediscovering later: at a much larger `alerts` table, the fix is streaming the response (`response.stream`) row by row instead of building the whole string first, the same "name it now so it isn't rediscovered from scratch later" posture as the counter-cache and `pg_trgm` notes above.
+
+Every exported field is also a formula-injection surface for whatever spreadsheet app opens it: a cell starting with `=`, `+`, `-`, or `@` gets run as a formula, not displayed as text. This app's data is fictional and controlled, so the real-world risk is low, but every exported value traces back to a brand/product/store name entered at import time, so each cell is prefixed with `'` when it starts with one of those four characters - one line, and it closes the gap regardless of how low-risk this particular dataset is.
+
+All five were built, not just proposed as a "beyond the visual layer" wishlist - see Scope below for the complete list of what's live today.
 
 ## Pattern choices
 
@@ -187,7 +191,7 @@ Committing the compiled output instead of generating it at deploy time raises a 
 
 Named in "Search" above as the fix for name search at 100x scale: Postgres `ILIKE`/`pg_trgm`/full-text first, not Elasticsearch.
 
-**Declined for this project.** Elasticsearch is a stronger tool, but for a bigger problem than this app has - relevance ranking, typo tolerance, and full-text search across millions of documents, not "find a product by part of its name" across a few tens of thousands of rows even at 100x scale. It's also a second system to run and keep in sync with Postgres, normally via save callbacks that this app's `insert_all`-based imports skip entirely - the same sync problem already named for `counter_cache`, and worse, since it means operating a whole second service rather than one Rails-maintained column. Worth it at millions of documents, or for fuzzy relevance tuning `pg_trgm` genuinely can't do - not at this app's scale. Full reasoning in `DESIGN_REVIEW.md`, round 2.
+**Declined for this project.** Elasticsearch is a stronger tool, but for a bigger problem than this app has - relevance ranking, typo tolerance, and full-text search across millions of documents, not "find a product by part of its name" across a few tens of thousands of rows even at 100x scale. It's also a second system to run and keep in sync with Postgres, normally via save callbacks that this app's `insert_all`-based imports skip entirely - the same sync problem already named for `counter_cache`, and worse, since it means operating a whole second service rather than one Rails-maintained column. Worth it at millions of documents, or for fuzzy relevance tuning `pg_trgm` genuinely can't do - not at this app's scale. Full reasoning in `DESIGN_REVIEWED_PROPOSAL.md`, round 2.
 
 ## A forward-looking note
 

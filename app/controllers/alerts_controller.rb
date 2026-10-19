@@ -5,7 +5,7 @@ class AlertsController < ApplicationController
 
   # Each sort needs its own cursor column, matching the real table/join it
   # reads from - see DESIGN_PROPOSAL_FINAL.md's "Sorting and infinite scroll
-  # don't mix cheaply" note, now revised in DESIGN_REVIEW.md (round 7) now
+  # don't mix cheaply" note, now revised in DESIGN_REVIEWED_PROPOSAL.md (round 7) now
   # that this combination is actually built. "status" sorts on a computed
   # boolean (resolved_at IS NOT NULL) rather than resolved_at itself, since
   # resolved_at is NULL for every open alert and NULL never satisfies a
@@ -117,13 +117,24 @@ class AlertsController < ApplicationController
       csv << ["Brand", "Product", "Store", "Triggered At", "Status"]
       ordered.each do |alert|
         csv << [
-          alert.brand.name,
-          alert.product.name,
-          alert.store.address,
+          csv_safe(alert.brand.name),
+          csv_safe(alert.product.name),
+          csv_safe(alert.store.address),
           alert.triggered_at.iso8601,
           alert.resolved_at ? "Resolved #{alert.resolved_at.to_date.iso8601}" : "Ongoing",
         ]
       end
     end
+  end
+
+  # A cell starting with =, +, -, or @ is run as a formula by whatever
+  # spreadsheet app opens this export, not displayed as text. This app's
+  # data is fictional, so the real-world risk is low, but every exported
+  # value traces back to a brand/product/store name entered at import
+  # time - prefixing with a literal quote defuses it either way.
+  FORMULA_PREFIXES = %w[= + - @].freeze
+
+  def csv_safe(value)
+    FORMULA_PREFIXES.include?(value[0]) ? "'#{value}" : value
   end
 end

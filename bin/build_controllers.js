@@ -15,7 +15,10 @@ import path from "path"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const srcDir = path.join(here, "..", "app", "javascript", "controllers_src")
-const outDir = path.join(here, "..", "app", "javascript", "controllers")
+// Optional override (an absolute path) so the build-drift test can build
+// into a scratch directory and diff it against the committed output,
+// instead of overwriting the committed output to find out it drifted.
+const outDir = process.argv[2] || path.join(here, "..", "app", "javascript", "controllers")
 
 const entryPoints = readdirSync(srcDir)
   .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"))

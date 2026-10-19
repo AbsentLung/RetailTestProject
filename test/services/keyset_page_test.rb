@@ -71,6 +71,44 @@ class KeysetPageTest < ActiveSupport::TestCase
     assert_nil page.prev_cursor
   end
 
+  def count_queries
+    count = 0
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") { count += 1 }
+    yield
+    count
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
+  # next_cursor/prev_cursor used to run a separate EXISTS query each, every
+  # request, regardless of whether a cursor was even present. The limit+1
+  # trick (fetch one extra row, check whether it came back) answers "is
+  # there more in the direction just queried" for free, so a cursor-less
+  # first page needs no extra query at all, and a cursor-set page needs
+  # at most one (for the direction the fetch itself didn't just check).
+  test "a cursor-less first page runs no extra queries beyond the one fetch" do
+    (1..3).each { |n| create_event(n.days.ago) }
+
+    queries = count_queries do
+      page = KeysetPage.new(TrackingEvent.all, column: :event_time, limit: 2)
+      page.next_cursor
+      page.prev_cursor
+    end
+    assert_equal 1, queries, "the fetch itself, and nothing else - no EXISTS query for next or prev"
+  end
+
+  test "a cursor-set page runs at most one extra query" do
+    events = (1..5).map { |n| create_event(n.days.ago) }
+    first_page = KeysetPage.new(TrackingEvent.all, column: :event_time, limit: 2)
+
+    queries = count_queries do
+      page = KeysetPage.new(TrackingEvent.all, column: :event_time, limit: 2, after: first_page.next_cursor)
+      page.next_cursor
+      page.prev_cursor
+    end
+    assert_equal 2, queries, "the fetch, plus one EXISTS query for prev_cursor (next_cursor is free off the forward fetch)"
+  end
+
   # Alerts' sort-by-brand/product/store and sort-by-status use a joined
   # column and a computed boolean, respectively - neither is a plain
   # attribute KeysetPage's default `row.public_send(column)` extractor can

@@ -103,6 +103,18 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @resolved_alert.product.name, rows.first["Product"]
   end
 
+  test "CSV export prefixes a cell that would otherwise read as a spreadsheet formula" do
+    formula_brand = Brand.create!(name: "=1+1")
+    make_alert(brand: formula_brand)
+
+    get alerts_path(format: :csv), params: { brand_id: formula_brand.id }
+    assert_response :success
+
+    rows = CSV.parse(response.body, headers: true)
+    assert_equal 1, rows.size
+    assert_equal "'=1+1", rows.first["Brand"]
+  end
+
   test "sorting by brand name orders alerts alphabetically by brand" do
     get alerts_path(sort: "brand", direction: "asc")
     assert_response :success

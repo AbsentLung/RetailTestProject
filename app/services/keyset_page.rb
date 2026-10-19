@@ -25,23 +25,42 @@ class KeysetPage
     @direction = direction
     @value = value || ->(row) { row.public_send(column) }
     @limit = limit
-    @rows = fetch_rows(after, before)
+    @before_cursor = before.present? ? safe_decode(before) : nil
+    @after_cursor = @before_cursor.nil? && after.present? ? safe_decode(after) : nil
+    @rows, @more_in_fetch_direction = fetch_rows
   end
 
   def empty?
     rows.empty?
   end
 
+  # Fetching limit+1 rows and checking whether the extra one came back (the
+  # same trick Paginatable uses) answers "is there more in the direction we
+  # just queried" with no extra query - that's enough for next_cursor off
+  # an "after" fetch (or the cursor-less first page) and for prev_cursor
+  # off a "before" fetch. The opposite direction - "is there a page behind
+  # the one we navigated to" - still needs one EXISTS query, but only when
+  # a cursor was actually given; the first page never needs it; there's
+  # nothing before it.
   def next_cursor
     return nil if rows.empty?
     last = rows.last
-    KeysetCursor.encode(@value.call(last), last.id) if more?(last, forward: true)
+    has_more = @before_cursor ? more?(last, forward: true) : @more_in_fetch_direction
+    KeysetCursor.encode(@value.call(last), last.id) if has_more
   end
 
   def prev_cursor
     return nil if rows.empty?
     first = rows.first
-    KeysetCursor.encode(@value.call(first), first.id) if more?(first, forward: false)
+    has_more =
+      if @after_cursor
+        more?(first, forward: false)
+      elsif @before_cursor
+        @more_in_fetch_direction
+      else
+        false
+      end
+    KeysetCursor.encode(@value.call(first), first.id) if has_more
   end
 
   private
@@ -62,22 +81,24 @@ class KeysetPage
     @direction == :desc ? :asc : :desc
   end
 
-  def fetch_rows(after, before)
-    if before.present? && (cursor = safe_decode(before))
-      value, id = cursor
-      @scope.where("(#{@column}, #{@id_column}) #{backward_operator} (?, ?)", value, id)
+  def fetch_rows
+    if @before_cursor
+      value, id = @before_cursor
+      fetched = @scope.where("(#{@column}, #{@id_column}) #{backward_operator} (?, ?)", value, id)
             .reorder(Arel.sql(@column) => backward_direction, Arel.sql(@id_column) => backward_direction)
-            .limit(@limit)
+            .limit(@limit + 1)
             .to_a
-            .reverse
-    elsif after.present? && (cursor = safe_decode(after))
-      value, id = cursor
-      @scope.where("(#{@column}, #{@id_column}) #{forward_operator} (?, ?)", value, id)
+      [fetched.first(@limit).reverse, fetched.size > @limit]
+    elsif @after_cursor
+      value, id = @after_cursor
+      fetched = @scope.where("(#{@column}, #{@id_column}) #{forward_operator} (?, ?)", value, id)
             .reorder(Arel.sql(@column) => @direction, Arel.sql(@id_column) => @direction)
-            .limit(@limit)
+            .limit(@limit + 1)
             .to_a
+      [fetched.first(@limit), fetched.size > @limit]
     else
-      @scope.reorder(Arel.sql(@column) => @direction, Arel.sql(@id_column) => @direction).limit(@limit).to_a
+      fetched = @scope.reorder(Arel.sql(@column) => @direction, Arel.sql(@id_column) => @direction).limit(@limit + 1).to_a
+      [fetched.first(@limit), fetched.size > @limit]
     end
   end
 

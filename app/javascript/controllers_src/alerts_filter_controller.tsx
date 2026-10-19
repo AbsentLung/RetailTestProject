@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 
 // Mounts a React-rendered replacement for the alerts filter/table/pagination
 // over the server-rendered version already in the DOM - see
-// DESIGN_REVIEW.md round 8. The server-rendered markup (a real <form>, real
+// DESIGN_REVIEWED_PROPOSAL.md round 8. The server-rendered markup (a real <form>, real
 // links, a <noscript> submit button) is the no-JS fallback and stays
 // exactly as it is; this only replaces it once JS has actually run.
 export default class extends Controller {
