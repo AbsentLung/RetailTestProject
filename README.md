@@ -4,6 +4,8 @@ The original assignment is in [ASSIGNMENT.md](ASSIGNMENT.md).
 
 ## Running it
 
+Requires Ruby 3.2.2 and PostgreSQL 13+.
+
 ```bash
 bundle install
 bin/rails db:create db:migrate db:seed
@@ -15,7 +17,7 @@ bin/rails test                            # 34 tests
 
 ## Key decisions
 
-- **Price checks get their own table.** The README says the two checks are independent, so `price_checks` has no foreign key to `tracking_events` at all — not a column bolted onto it.
+- **Price checks get their own table.** The assignment says the two checks are independent, so `price_checks` has no foreign key to `tracking_events` at all — not a column bolted onto it.
 - **Alerts are computed with a SQL window function**, ordered by `(event_time, id)`, one alert per streak rather than per pair. Ordering by arrival order instead would get roughly **79% of alerts wrong** — the CSV isn't sorted by `event_time`.
 - **Re-imports are blocked per file (a checksum), not per row.** 57,551 same-day duplicate checks are real data, not an import bug; a unique index on the row would silently drop some of them.
 - **Batched `insert_all`** instead of row-by-row `create!`: the import went from an extrapolated ~30 minutes to a measured ~44 seconds.
