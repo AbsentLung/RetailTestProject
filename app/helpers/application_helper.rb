@@ -18,12 +18,18 @@ module ApplicationHelper
     links = []
     base = request.query_parameters.except("before", "after")
     links << link_to("&laquo; Previous".html_safe, url_for(base.merge(before: page.prev_cursor))) if page.prev_cursor
-    # class: "next-link" is what app/javascript/controllers/infinite_scroll_controller.js
-    # watches - it's the same link a no-JS click would follow, just fetched
-    # early and appended instead of navigated to.
-    links << link_to("Next &raquo;".html_safe, url_for(base.merge(after: page.next_cursor)), class: "next-link") if page.next_cursor
+    links << link_to("Next &raquo;".html_safe, url_for(base.merge(after: page.next_cursor))) if page.next_cursor
     return "".html_safe if links.empty?
     content_tag(:nav, safe_join(links, " "), class: "pagination")
+  end
+
+  # A clickable column header: `url` already carries the right sort/direction
+  # (built per-controller, since the sort options differ per table) - this
+  # just renders the link and, when it's the active column, the arrow
+  # showing which direction it's currently sorted.
+  def sort_header(label, url:, active:, direction: nil, th_class: nil)
+    text = active ? "#{label} #{direction == :asc ? "▲" : "▼"}" : label
+    content_tag(:th, class: th_class) { link_to(text, url, class: "sort-link") }
   end
 
   def nav_link(text, path, section)

@@ -215,6 +215,16 @@ thead th {
   color: var(--color-ink-muted);
 }
 
+.sort-link {
+  color: inherit;
+}
+
+.sort-link:hover,
+.sort-link:focus-visible {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
 tbody tr:last-child td {
   border-bottom: none;
 }

@@ -103,6 +103,32 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @resolved_alert.product.name, rows.first["Product"]
   end
 
+  test "sorting by brand name orders alerts alphabetically by brand" do
+    get alerts_path(sort: "brand", direction: "asc")
+    assert_response :success
+
+    names = css_select("tbody tr td:first-child").map(&:text)
+    assert_equal names.sort, names
+  end
+
+  test "sorting by status groups open alerts first in ascending order" do
+    get alerts_path(sort: "status", direction: "asc")
+    assert_response :success
+
+    statuses = css_select("tbody tr td.pill, tbody tr td").select { |td| td["class"].nil? }.map { |td| td.text }
+    # simpler and more robust: just check the open alert's row appears before the resolved one
+    body_positions = [@open_alert.product.name, @resolved_alert.product.name].map { |name| response.body.index(name) }
+    assert_operator body_positions.first, :<, body_positions.second
+  end
+
+  test "clicking the same sort column again is reflected as a direction toggle in the header link" do
+    get alerts_path(sort: "triggered_at", direction: "desc")
+    assert_response :success
+    assert_select "th a", text: /Triggered/ do |links|
+      assert_match(/direction=asc/, links.first["href"])
+    end
+  end
+
   private
 
   def make_alert(brand:, label: nil)

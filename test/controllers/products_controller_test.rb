@@ -28,4 +28,44 @@ class ProductsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "tbody tr", 5
   end
+
+  test "inventory_present filters the tracking-events list" do
+    TrackingEvent.create!(product: @product, store: @store, event_time: 2.days.ago, inventory_present: true)
+    TrackingEvent.create!(product: @product, store: @store, event_time: 1.day.ago, inventory_present: false)
+
+    get product_path(@product, inventory_present: "yes")
+    assert_response :success
+    assert_select "tbody tr", 1
+    assert_select "tbody td", text: "Yes"
+  end
+
+  test "a date range filters the tracking-events list to that window" do
+    TrackingEvent.create!(product: @product, store: @store, event_time: Time.zone.local(2026, 1, 1), inventory_present: true)
+    TrackingEvent.create!(product: @product, store: @store, event_time: Time.zone.local(2026, 6, 1), inventory_present: true)
+
+    get product_path(@product, from: "2026-01-01", to: "2026-01-02")
+    assert_response :success
+    assert_select "tbody tr", 1
+    assert_select ".empty-state", false
+  end
+
+  test "sorting the tracking-events list by store address orders alphabetically" do
+    store_a = Store.create!(address: "1 AAA St")
+    store_z = Store.create!(address: "1 ZZZ St")
+    TrackingEvent.create!(product: @product, store: store_z, event_time: 2.days.ago, inventory_present: true)
+    TrackingEvent.create!(product: @product, store: store_a, event_time: 1.day.ago, inventory_present: true)
+
+    get product_path(@product, event_sort: "store", event_direction: "asc")
+    assert_response :success
+    addresses = css_select("tbody tr td:nth-child(3)").map(&:text)
+    assert_equal addresses.sort, addresses
+  end
+
+  test "a malformed date doesn't error, just doesn't filter" do
+    TrackingEvent.create!(product: @product, store: @store, event_time: 1.day.ago, inventory_present: true)
+
+    get product_path(@product, from: "not-a-date")
+    assert_response :success
+    assert_select "tbody tr", 1
+  end
 end

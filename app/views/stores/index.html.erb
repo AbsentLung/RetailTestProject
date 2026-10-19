@@ -7,8 +7,8 @@
     <table>
       <thead>
         <tr>
-          <th>Address</th>
-          <th class="num">Tracking Events</th>
+          <%= sort_header "Address", url: sort_url("address"), active: @sort == "address", direction: @direction %>
+          <%= sort_header "Tracking Events", url: sort_url("events"), active: @sort == "events", direction: @direction, th_class: "num" %>
           <th></th>
         </tr>
       </thead>

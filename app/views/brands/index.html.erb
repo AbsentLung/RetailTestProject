@@ -7,8 +7,8 @@
     <table>
       <thead>
         <tr>
-          <th>Name</th>
-          <th class="num">Products</th>
+          <%= sort_header "Name", url: sort_url("name"), active: @sort == "name", direction: @direction %>
+          <%= sort_header "Products", url: sort_url("products"), active: @sort == "products", direction: @direction, th_class: "num" %>
           <th></th>
         </tr>
       </thead>

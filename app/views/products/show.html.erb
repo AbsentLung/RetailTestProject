@@ -46,18 +46,40 @@
   </div>
 <% end %>
 
-<div class="card" data-controller="infinite-scroll">
+<div class="card">
   <h2>Tracking Events</h2>
+  <%= form_with url: product_path(@product), method: :get, local: true, class: "filter-row" do %>
+    <div class="filter-field">
+      <%= label_tag :inventory_present, "Inventory Present?" %>
+      <%= select_tag :inventory_present, options_for_select([["All", ""], ["Yes", "yes"], ["No", "no"]], @inventory_present || "") %>
+    </div>
+    <div class="filter-field">
+      <%= label_tag :store_id, "Store" %>
+      <%= select_tag :store_id, options_for_select([["All stores", ""]] + @stores_for_filter, @store_id || "") %>
+    </div>
+    <div class="filter-field">
+      <%= label_tag :from, "From" %>
+      <%= date_field_tag :from, @from %>
+    </div>
+    <div class="filter-field">
+      <%= label_tag :to, "To" %>
+      <%= date_field_tag :to, @to %>
+    </div>
+    <button type="submit" class="btn-filter">Filter</button>
+    <% if @inventory_present || @store_id || @from || @to %>
+      <%= link_to "Clear filters", product_path(@product), class: "nav-link" %>
+    <% end %>
+  <% end %>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Event Time</th>
-          <th>Inventory Present?</th>
-          <th>Store Address</th>
+          <%= sort_header "Event Time", url: event_sort_url("event_time"), active: @event_sort == "event_time", direction: @event_direction %>
+          <%= sort_header "Inventory Present?", url: event_sort_url("inventory_present"), active: @event_sort == "inventory_present", direction: @event_direction %>
+          <%= sort_header "Store Address", url: event_sort_url("store"), active: @event_sort == "store", direction: @event_direction %>
         </tr>
       </thead>
-      <tbody data-infinite-scroll-target="rows">
+      <tbody>
         <% @events.each do |event| %>
           <tr>
             <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
@@ -67,6 +89,9 @@
         <% end %>
       </tbody>
     </table>
+    <% if @events.empty? %>
+      <p class="empty-state">No tracking events match these filters.</p>
+    <% end %>
   </div>
   <%= keyset_pagination_links(@events_page) %>
 </div>
