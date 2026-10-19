@@ -83,6 +83,26 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select#status option[value='open'][selected]"
   end
 
+  test "CSV export includes every matching alert, not just one page" do
+    get alerts_path(format: :csv), params: { status: "open" }
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+
+    rows = CSV.parse(response.body, headers: true)
+    assert_equal 1, rows.size
+    assert_equal @open_alert.product.name, rows.first["Product"]
+    assert_not response.body.include?(@resolved_alert.product.name)
+  end
+
+  test "CSV export respects brand_id too" do
+    get alerts_path(format: :csv), params: { brand_id: @brand_b.id }
+    assert_response :success
+
+    rows = CSV.parse(response.body, headers: true)
+    assert_equal 1, rows.size
+    assert_equal @resolved_alert.product.name, rows.first["Product"]
+  end
+
   private
 
   def make_alert(brand:, label: nil)

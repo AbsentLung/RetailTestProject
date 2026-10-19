@@ -1,5 +1,6 @@
 <div class="page-header">
   <h1>Alerts</h1>
+  <%= link_to "Export CSV", alerts_path(request.query_parameters.except("before", "after").merge(format: :csv)), class: "nav-link" %>
 </div>
 
 <div class="card">
