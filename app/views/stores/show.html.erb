@@ -35,28 +35,30 @@
   </div>
 <% end %>
 
-<div class="card">
+<div class="card" id="tracking-events">
   <h2>Tracking Events</h2>
-  <%= form_with url: store_path(@store), method: :get, local: true, class: "filter-row" do %>
+  <%= form_with url: store_path(@store, anchor: "tracking-events"), method: :get, local: true, class: "filter-row", data: { controller: "auto-submit" } do %>
     <div class="filter-field">
       <%= label_tag :inventory_present, "Inventory Present?" %>
-      <%= select_tag :inventory_present, options_for_select([["All", ""], ["Yes", "yes"], ["No", "no"]], @inventory_present || "") %>
+      <%= select_tag :inventory_present, options_for_select([["All", ""], ["Yes", "yes"], ["No", "no"]], @inventory_present || ""), data: { action: "change->auto-submit#submit" } %>
     </div>
     <div class="filter-field">
       <%= label_tag :product_id, "Product" %>
-      <%= select_tag :product_id, options_for_select([["All products", ""]] + @products_for_filter, @product_id || "") %>
+      <%= select_tag :product_id, options_for_select([["All products", ""]] + @products_for_filter, @product_id || ""), data: { action: "change->auto-submit#submit" } %>
     </div>
     <div class="filter-field">
       <%= label_tag :from, "From" %>
-      <%= date_field_tag :from, @from %>
+      <%= date_field_tag :from, @from, data: { action: "change->auto-submit#submit" } %>
     </div>
     <div class="filter-field">
       <%= label_tag :to, "To" %>
-      <%= date_field_tag :to, @to %>
+      <%= date_field_tag :to, @to, data: { action: "change->auto-submit#submit" } %>
     </div>
-    <button type="submit" class="btn-filter">Filter</button>
+    <%# Fields submit on change via Stimulus - this button only exists for
+        the no-JS case, where nothing else can submit the form at all. %>
+    <noscript><button type="submit" class="btn-filter">Filter</button></noscript>
     <% if @inventory_present || @product_id || @from || @to %>
-      <%= link_to "Clear filters", store_path(@store), class: "nav-link" %>
+      <%= link_to "Clear filters", store_path(@store, anchor: "tracking-events"), class: "nav-link", data: { turbo: false } %>
     <% end %>
   <% end %>
   <div class="table-wrap">

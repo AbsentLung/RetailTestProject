@@ -29,7 +29,11 @@ module ApplicationHelper
   # showing which direction it's currently sorted.
   def sort_header(label, url:, active:, direction: nil, th_class: nil)
     text = active ? "#{label} #{direction == :asc ? "▲" : "▼"}" : label
-    content_tag(:th, class: th_class) { link_to(text, url, class: "sort-link") }
+    # data-turbo="false": Turbo Drive's own visit doesn't resolve a #anchor
+    # in the URL the way a real page load does - a sort click that lands on
+    # a specific table instead of the top of the page needs the anchor to
+    # actually work, so this opts out of Turbo for a real navigation.
+    content_tag(:th, class: th_class) { link_to(text, url, class: "sort-link", data: { turbo: false }) }
   end
 
   def nav_link(text, path, section)

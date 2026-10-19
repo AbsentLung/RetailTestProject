@@ -98,6 +98,12 @@ class ProductsController < ApplicationController
   def event_sort_url(key)
     config = EVENT_SORTS.fetch(key)
     direction = @event_sort == key ? (@event_direction == :asc ? "desc" : "asc") : config[:direction].to_s
-    product_path(@product, request.query_parameters.except("before", "after", "event_sort", "event_direction").merge(event_sort: key, event_direction: direction))
+    # The #tracking-events fragment lands the reload back on the table
+    # instead of the top of the page. Appended as a plain string rather
+    # than passed as anchor: - that option gets treated as a literal query
+    # param here instead of a URL fragment when called through a
+    # helper_method from the view, for reasons that didn't repro in
+    # isolation; appending it directly is simple and always correct.
+    "#{product_path(@product, request.query_parameters.except("before", "after", "event_sort", "event_direction").merge(event_sort: key, event_direction: direction))}#tracking-events"
   end
 end

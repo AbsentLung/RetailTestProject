@@ -86,6 +86,11 @@ class StoresController < ApplicationController
   def event_sort_url(key)
     config = EVENT_SORTS.fetch(key)
     direction = @event_sort == key ? (@event_direction == :asc ? "desc" : "asc") : config[:direction].to_s
-    store_path(@store, request.query_parameters.except("before", "after", "event_sort", "event_direction").merge(event_sort: key, event_direction: direction))
+    # The #tracking-events fragment lands the reload back on the table
+    # instead of the top of the page. Appended as a plain string rather
+    # than passed as anchor: - see the matching comment in
+    # ProductsController for why that option doesn't work through a
+    # helper_method here.
+    "#{store_path(@store, request.query_parameters.except("before", "after", "event_sort", "event_direction").merge(event_sort: key, event_direction: direction))}#tracking-events"
   end
 end
