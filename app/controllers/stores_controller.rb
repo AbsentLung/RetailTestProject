@@ -17,12 +17,17 @@ class StoresController < ApplicationController
   def index
     @sort = SORTS.key?(params[:sort]) ? params[:sort] : DEFAULT_SORT
     @direction = %w[asc desc].include?(params[:direction]) ? params[:direction].to_sym : SORTS.fetch(@sort)[:direction]
+    @q = params[:q].presence
 
     scope = if @sort == "events"
       Store.left_joins(:tracking_events).select("stores.*, COUNT(tracking_events.id) AS event_count").group("stores.id")
     else
       Store.all
     end
+    # Bound, not interpolated - sanitize_sql_like escapes %/_ in the user's
+    # own term so a literal "50%" searches for the literal string, not a
+    # wildcard. See DESIGN_PROPOSAL_FINAL.md's Search section.
+    scope = scope.where("stores.address ILIKE ?", "%#{Store.sanitize_sql_like(@q)}%") if @q
 
     @stores = paginate(scope.reorder(Arel.sql(SORTS.fetch(@sort)[:order]) => @direction))
     @event_counts = if @sort == "events"

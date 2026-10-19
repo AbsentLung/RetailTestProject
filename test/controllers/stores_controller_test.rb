@@ -51,4 +51,41 @@ class StoresControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "tbody tr", 1
   end
+
+  test "q searches stores by address substring" do
+    Store.create!(address: "7 Green Dragon Lane, Bywater")
+    Store.create!(address: "3 Prancing Pony Way, Bree")
+
+    get stores_path(q: "Dragon")
+    assert_response :success
+    assert_match "Green Dragon Lane", response.body
+    assert_no_match "Prancing Pony", response.body
+  end
+
+  test "q is case-insensitive" do
+    Store.create!(address: "7 Green Dragon Lane, Bywater")
+
+    get stores_path(q: "dragon")
+    assert_response :success
+    assert_match "Green Dragon Lane", response.body
+  end
+
+  test "a literal % in q is searched for literally, not as a wildcard" do
+    Store.create!(address: "50% Off Street")
+    Store.create!(address: "500 Main Street")
+
+    get stores_path(q: "50%")
+    assert_response :success
+    assert_match "50% Off Street", response.body
+    assert_no_match "500 Main Street", response.body
+  end
+
+  test "no q shows every store" do
+    Store.create!(address: "7 Green Dragon Lane, Bywater")
+
+    get stores_path
+    assert_response :success
+    assert_match "1 Stores Test Ave", response.body
+    assert_match "Green Dragon Lane", response.body
+  end
 end
