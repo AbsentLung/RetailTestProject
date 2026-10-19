@@ -29,6 +29,21 @@ class StoresControllerTest < ActionDispatch::IntegrationTest
     assert_equal names.sort, names
   end
 
+  test "sorting the tracking-events list by brand name orders alphabetically, and brand links to the brand page" do
+    brand_a = Brand.create!(name: "AAA Brand")
+    brand_z = Brand.create!(name: "ZZZ Brand")
+    product_a = Product.create!(name: "Product under AAA", brand: brand_a)
+    product_z = Product.create!(name: "Product under ZZZ", brand: brand_z)
+    TrackingEvent.create!(product: product_z, store: @store, event_time: 2.days.ago, inventory_present: true)
+    TrackingEvent.create!(product: product_a, store: @store, event_time: 1.day.ago, inventory_present: true)
+
+    get store_path(@store, event_sort: "brand", event_direction: "asc")
+    assert_response :success
+    names = css_select("tbody tr td:nth-child(4)").map(&:text)
+    assert_equal names.sort, names
+    assert_select "tbody tr:first-child td:nth-child(4) a[href=?]", brand_path(brand_a), text: brand_a.name
+  end
+
   test "product_id filters to that product's events only" do
     other_product = Product.create!(name: "Other Product", brand: @brand)
     TrackingEvent.create!(product: @product, store: @store, event_time: 2.days.ago, inventory_present: true)

@@ -68,7 +68,7 @@
           <%= sort_header "Event Time", url: event_sort_url("event_time"), active: @event_sort == "event_time", direction: @event_direction %>
           <%= sort_header "Inventory Present?", url: event_sort_url("inventory_present"), active: @event_sort == "inventory_present", direction: @event_direction %>
           <%= sort_header "Product", url: event_sort_url("product"), active: @event_sort == "product", direction: @event_direction %>
-          <th>Brand</th>
+          <%= sort_header "Brand", url: event_sort_url("brand"), active: @event_sort == "brand", direction: @event_direction %>
         </tr>
       </thead>
       <tbody>
@@ -77,7 +77,7 @@
             <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
             <td><%= event.inventory_present ? "Yes" : "No" %></td>
             <td><%= link_to event.product.name, product_path(event.product) %></td>
-            <td><%= event.product.brand&.name %></td>
+            <td><%= link_to event.product.brand.name, brand_path(event.product.brand) %></td>
           </tr>
         <% end %>
       </tbody>

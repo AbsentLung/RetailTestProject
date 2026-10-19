@@ -9,6 +9,7 @@ class StoresController < ApplicationController
     "event_time" => { column: "tracking_events.event_time", id_column: "tracking_events.id", direction: :desc, value: ->(e) { e.event_time } },
     "inventory_present" => { column: "tracking_events.inventory_present", id_column: "tracking_events.id", direction: :asc, value: ->(e) { e.inventory_present } },
     "product" => { column: "products.name", id_column: "tracking_events.id", direction: :asc, value: ->(e) { e.product.name } },
+    "brand" => { column: "brands.name", id_column: "tracking_events.id", direction: :asc, value: ->(e) { e.product.brand.name } },
   }.freeze
   EVENT_DEFAULT_SORT = "event_time"
 
