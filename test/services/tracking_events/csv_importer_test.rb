@@ -1,0 +1,135 @@
+require "test_helper"
+require "tempfile"
+
+module TrackingEvents
+  class CsvImporterTest < ActiveSupport::TestCase
+    setup do
+      @brand = Brand.create!(name: "Test Brand")
+      @product = Product.create!(name: "Test Product", brand: @brand)
+      @store = Store.create!(address: "123 Test St")
+    end
+
+    def write_csv(rows)
+      file = Tempfile.new(["tracking_events", ".csv"])
+      file.write("Address,Product Name,Date,Inventory Present\n")
+      rows.each { |row| file.write(row.join(",") + "\n") }
+      file.flush
+      file
+    end
+
+    test "imports matching rows and skips rows with no matching store or product" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        ["Unknown Address", @product.name, "2025-01-02", "True"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert_equal 1, CsvImport.count
+    end
+
+    test "re-running the same file is a no-op" do
+      file = write_csv([[@store.address, @product.name, "2025-01-01", "True"]])
+
+      CsvImporter.new(file.path).call
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert_equal 1, CsvImport.count
+    end
+
+    test "a row with an unrecognized inventory value is skipped, not fatal" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        [@store.address, @product.name, "2025-01-02", "maybe"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert CsvImport.exists?(row_count: 1), "expected the successfully-imported row to be counted, skipping the bad one"
+    end
+
+    test "a row with a blank date cell is skipped, not fatal" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        [@store.address, @product.name, "", "True"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert CsvImport.exists?(row_count: 1), "expected the successfully-imported row to be counted, skipping the blank-date one"
+    end
+
+    test "a blank inventory value is skipped, not silently treated as false" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "True"],
+        [@store.address, @product.name, "2025-01-02", ""],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, TrackingEvent.count
+      assert CsvImport.exists?(row_count: 1), "a blank inventory cell is bad data, not a real no-inventory reading - it should be skipped, not recorded as false"
+    end
+
+    test "an unexpected failure during import is reported, rolled back, and still raised" do
+      file = write_csv([[@store.address, @product.name, "2025-01-01", "True"]])
+      reported = nil
+
+      ErrorReporter.stub(:notify, ->(exception, context: {}) { reported = exception }) do
+        AlertGenerator.stub(:new, ->(*) { raise "boom" }) do
+          assert_raises(RuntimeError) { CsvImporter.new(file.path).call }
+        end
+      end
+
+      assert_equal "boom", reported.message
+      assert_equal 0, TrackingEvent.count, "the transaction should have rolled back, not left a partial import"
+    end
+
+    test "an alert-generation failure during import is reported exactly once" do
+      file = write_csv([[@store.address, @product.name, "2025-01-01", "False"]])
+
+      # Stubbing AlertGenerator.new to return a preconfigured instance would
+      # let this pass even if after_import stopped passing report_errors:
+      # false - the stub ignores whatever arguments the real call site uses.
+      # Redefining #run on the class itself exercises the real after_import
+      # call site, args included.
+      original_run = AlertGenerator.instance_method(:run)
+      AlertGenerator.define_method(:run) { |**| raise "boom" }
+
+      begin
+        assert_difference "ActionMailer::Base.deliveries.size", 1 do
+          assert_raises(RuntimeError) { CsvImporter.new(file.path).call }
+        end
+      ensure
+        AlertGenerator.define_method(:run, original_run)
+        AlertGenerator.send(:private, :run)
+      end
+
+      assert_equal 0, TrackingEvent.count, "the transaction should have rolled back, not left a partial import"
+
+      # Checking the count alone isn't enough: ErrorReporter's dedup flag
+      # would mask a regression here too, by silently absorbing a second
+      # report rather than sending it - count would still read 1 either way.
+      # The context key is the only thing that actually tells the two apart.
+      mail = ActionMailer::Base.deliveries.last
+      body = mail.body.to_s
+      assert_match "importer:", body, "the one email sent should carry the importer's context (file path, rows so far)"
+      assert_no_match "generator:", body, "AlertGenerator should not have reported this itself - report_errors: false means the importer's rescue is the sole reporter"
+    end
+
+    test "importing triggers alert generation" do
+      file = write_csv([
+        [@store.address, @product.name, "2025-01-01", "False"],
+        [@store.address, @product.name, "2025-01-02", "False"],
+      ])
+
+      CsvImporter.new(file.path).call
+
+      assert_equal 1, Alert.count
+    end
+  end
+end

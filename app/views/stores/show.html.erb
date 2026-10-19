@@ -5,12 +5,29 @@
   <%= @store.address %>
 </p>
 
-<p>
-  <strong>Total Tracking Events:</strong>
-  <%= @store.tracking_events.size %>
-</p>
+<% if @price_history.any? %>
+  <h2>Recent Price Checks</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Product</th>
+        <th>Price</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @price_history.each do |price_check| %>
+        <tr>
+          <td><%= price_check.event_time.strftime("%Y-%m-%d") %></td>
+          <td><%= link_to price_check.product.name, product_path(price_check.product) %></td>
+          <td>$<%= format("%.2f", price_check.price_cents / 100.0) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
 
-<h2>Tracking Events</h2>
+<h2>Tracking Events (page <%= params[:page].to_i.clamp(1..) %>)</h2>
 <table>
   <thead>
     <tr>
@@ -21,7 +38,7 @@
     </tr>
   </thead>
   <tbody>
-    <% @store.tracking_events.each do |event| %>
+    <% @events.first(Paginatable::PER_PAGE).each do |event| %>
       <tr>
         <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
         <td><%= event.inventory_present ? "Yes" : "No" %></td>
@@ -31,10 +48,11 @@
     <% end %>
   </tbody>
 </table>
+<%= pagination_links(@events) %>
 
 <nav>
   <%= link_to "Back to Stores", stores_path %> |
   <%= link_to "Products", products_path %> |
-  <%= link_to "Brands", brands_path %>
+  <%= link_to "Brands", brands_path %> |
+  <%= link_to "Alerts", alerts_path %>
 </nav>
-

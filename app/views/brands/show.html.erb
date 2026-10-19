@@ -5,6 +5,37 @@
   <%= @brand.products.size %>
 </p>
 
+<p>
+  <strong><%= pluralize(@open_alerts_count, "open alert") %></strong>
+  <%= link_to "(view all alerts)", alerts_path %>
+</p>
+
+<% if @alerts.any? %>
+  <h2>Recent Alerts</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Store</th>
+        <th>Triggered</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @alerts.each do |alert| %>
+        <tr>
+          <td><%= alert.product.name %></td>
+          <td><%= alert.store.address %></td>
+          <td><%= alert.triggered_at.strftime("%Y-%m-%d") %></td>
+          <td><%= alert.resolved_at ? "Resolved #{alert.resolved_at.strftime('%Y-%m-%d')}" : "Ongoing" %></td>
+          <td><%= link_to "View", alert_path(alert) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+
 <h2>Products</h2>
 <table>
   <thead>
@@ -18,7 +49,7 @@
     <% @brand.products.each do |product| %>
       <tr>
         <td><%= product.name %></td>
-        <td><%= product.tracking_events.size %></td>
+        <td><%= @event_counts.fetch(product.id, 0) %></td>
         <td><%= link_to "View Product", product_path(product) %></td>
       </tr>
     <% end %>
@@ -28,6 +59,6 @@
 <nav>
   <%= link_to "Back to Brands", brands_path %> |
   <%= link_to "Products", products_path %> |
-  <%= link_to "Stores", stores_path %>
+  <%= link_to "Stores", stores_path %> |
+  <%= link_to "Alerts", alerts_path %>
 </nav>
-

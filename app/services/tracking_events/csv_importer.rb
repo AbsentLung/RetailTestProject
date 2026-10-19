@@ -1,46 +1,33 @@
-require "csv"
-
 module TrackingEvents
-  class CsvImporter
-    def initialize(path)
-      @path = path
-    end
-
-    def call
-      row_count = 0
-      created_count = 0
-
-      CSV.foreach(@path, headers: true) do |row|
-        row_count += 1
-
-        store   = Store.find_by(address: row["Address"])
-        product = Product.find_by(name: row["Product Name"])
-
-        # If there's bad data, just skip it (or you could log it)
-        next unless store && product
-
-        event_time       = Date.parse(row["Date"])
-        inventory_present = cast_boolean(row["Inventory Present"])
-
-        TrackingEvent.create!(
-          store: store,
-          product: product,
-          event_time: event_time,
-          inventory_present: inventory_present
-        )
-
-        created_count += 1
-      end
-
-      Rails.logger.info "[TrackingEvents::CsvImporter] rows processed=#{row_count} created=#{created_count}"
-    end
-
+  class CsvImporter < Importers::BaseCsvImporter
     private
+
+    def model_class
+      TrackingEvent
+    end
+
+    def row_attributes(row, store, product)
+      {
+        store_id: store.id,
+        product_id: product.id,
+        event_time: Date.parse(row["Date"]),
+        inventory_present: cast_boolean(row["Inventory Present"])
+      }
+    end
+
+    def after_import
+      # Runs inside the importer's own open transaction - let the importer's
+      # rescue be the one that reports a failure here, once, after it's
+      # actually rolled back (see AlertGenerator#initialize).
+      AlertGenerator.new(report_errors: false).call
+    end
 
     def cast_boolean(value)
       case value
       when true, "true", "TRUE", "t", "T", "1", "True" then true
-      else false
+      when false, "false", "FALSE", "f", "F", "0", "False" then false
+      else
+        raise ArgumentError, "Unrecognized inventory value: #{value.inspect}"
       end
     end
   end

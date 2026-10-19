@@ -10,19 +10,21 @@
     </tr>
   </thead>
   <tbody>
-    <% @products.each do |product| %>
+    <% @products.first(Paginatable::PER_PAGE).each do |product| %>
       <tr>
         <td><%= product.name %></td>
         <td><%= product.brand&.name %></td>
-        <td><%= product.tracking_events.size %></td>
+        <td><%= @event_counts.fetch(product.id, 0) %></td>
         <td><%= link_to "View", product_path(product) %></td>
       </tr>
     <% end %>
   </tbody>
 </table>
+<%= pagination_links(@products) %>
 
 <nav>
   <%= link_to "Brands", brands_path %> |
-  <%= link_to "Stores", stores_path %>
+  <%= link_to "Stores", stores_path %> |
+  <%= link_to "Alerts", alerts_path %>
 </nav>
 
