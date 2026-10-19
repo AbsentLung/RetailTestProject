@@ -2,6 +2,15 @@
 
 This is the README's requested "brief README or notes document explaining your key decisions" — but about the *process*, not the technical detail. The technical detail already exists, in full, in five other documents this process produced. This one is the map: how this submission actually got built, using Claude Code, and why it was built that way.
 
+## The result, in numbers
+
+- **3 objectives, all addressed**: price tracking as a structurally independent table; an alert system ordered by `event_time` with one alert per streak; measured performance work on both the import path and every read path.
+- **~44 seconds** end-to-end for the real 1,000,000-row import, including alert generation — down from an extrapolated ~30 minutes for the original row-by-row approach.
+- **31,447 alerts**, exact, against the real imported data.
+- **230x faster** on the busiest store's page: 6 queries / 21ms, down from a measured 20,341 queries / 5,946.9ms.
+- **34 tests, 0 failures**, weighted toward the logic the review process identified as actually risky.
+- A documented limitation left honestly unfixed where fixing it wasn't yet justified (a grouped count that's already 84% of one page's load time at today's scale, correctly scoped as a 100x-scale problem, not a today problem) — because explaining a tradeoff is part of the assignment, not a gap in it.
+
 ## The process
 
 **1. Orientation, before touching any code.** First ask: list the three objectives plainly, from the README, so there was a shared, explicit target before any proposal existed.
@@ -43,12 +52,3 @@ The point of the repeated review wasn't indecision — it was that nothing got a
 | `CLAUDE.md` | Orientation for anyone — human or AI — picking this repository back up. The traps already found, so they don't get rediscovered. |
 | `IMPLEMENTATION_REPORT.md` | What happened when the approved design was actually built and run: what held up exactly as predicted, the bugs found only by running the app, and the full CodeRabbit-driven review of the real code. |
 | `DESIGN_PROPOSAL.md` | A bonus: three concrete visual-redesign options for the app's UI, proposed on a separate branch, not built pending a decision. |
-
-## The result, in numbers
-
-- **3 objectives, all addressed**: price tracking as a structurally independent table; an alert system ordered by `event_time` with one alert per streak; measured performance work on both the import path and every read path.
-- **~44 seconds** end-to-end for the real 1,000,000-row import, including alert generation — down from an extrapolated ~30 minutes for the original row-by-row approach.
-- **31,447 alerts**, exact, against the real imported data.
-- **230x faster** on the busiest store's page: 6 queries / 21ms, down from a measured 20,341 queries / 5,946.9ms.
-- **34 tests, 0 failures**, weighted toward the logic the review process identified as actually risky.
-- A documented limitation left honestly unfixed where fixing it wasn't yet justified (a grouped count that's already 84% of one page's load time at today's scale, correctly scoped as a 100x-scale problem, not a today problem) — because explaining a tradeoff is part of the assignment, not a gap in it.
