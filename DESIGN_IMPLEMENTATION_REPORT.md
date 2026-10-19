@@ -49,7 +49,7 @@ Built first as a single debounced text field on `/stores` (address), with an exp
 
 **A system test gave a false failure from reading the DOM too early.** Clicking a sort header in the React-based alerts UI appeared not to re-sort - because the test read the table immediately after the click, racing the async re-render. Fixed the test's wait condition, not the app.
 
-## Five rounds of external review, each catching something real
+## Six rounds of external review, each catching something real
 
 **Round A.** Found the "keyset infinite scroll" gap above, a heading mislabeled over the wrong comparison's content (Postgres-search-vs-Elasticsearch's heading sat over the Plain-CSS-vs-Sass table), and a stale "four things" count after a fifth section was added. All fixed.
 
