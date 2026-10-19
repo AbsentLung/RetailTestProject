@@ -30,7 +30,7 @@ Dark-mode-first, built for scanning a lot of rows fast - fitting, given the real
 - **Type.** IBM Plex Mono for everything, headings included - a deliberate terminal/console feel rather than a typical CRUD-app look.
 - **Layout.** Dense tables, minimal row padding. Alert status isn't a badge at all - it's a colored left-border bar on the row itself, like a log line.
 - **Where it fits.** The most opinionated option. Best if the alert system (the app's actual headline feature) should visually dominate, at the cost of looking less like a conventional admin panel.
-- **Correction from the mockup:** the artifact's first pass rewrote real product names into `snake_case` (`chocolate_frogs`) for the terminal aesthetic. That changes the actual data on screen, not just its styling - a real product named "Chocolate Frogs" shouldn't display as something else because of a theme choice. Dropped from the mockup regardless of which option gets picked.
+- **Correction from the mockup:** the artifact's first pass rewrote real product names into `snake_case` (`chocolate_frogs`) for the terminal aesthetic, and zero-padded tracking-event counts (`0892`) for the same reason. Both change the actual data on screen, not just its styling - a real product named "Chocolate Frogs" shouldn't display as something else, and a count of 892 isn't 0892, because of a theme choice. Both dropped from the mockup regardless of which option gets picked.
 
 ## What stays the same regardless of which one you pick
 
@@ -40,7 +40,7 @@ The same 4 sample products and 2 sample alerts (one ongoing, one resolved) appea
 
 ## Beyond the visual layer
 
-Four things worth architecting alongside the restyle, each with the actual database changes required, not just the feature description.
+Five things worth architecting alongside the restyle, each with the actual database changes required, not just the feature description.
 
 ### Search
 
@@ -99,7 +99,7 @@ The implementation path doesn't need a new dependency: Rails 7 ships Hotwire/Tur
 | Correctness under concurrent writes | Can skip or repeat rows if the underlying set changes between page loads | Stable - a cursor anchored to a specific row is unaffected by rows inserted elsewhere |
 | Implementation complexity | Already built | Needs a cursor encode/decode step, and validating a client-supplied token instead of a trusted integer page number |
 
-That "correctness under concurrent writes" row isn't just a performance difference. Offset pagination can skip or duplicate rows under concurrent inserts - the same *category* of bug as the exact-multiple-page edge case already found and fixed this session (`IMPLEMENTATION_REPORT.md`), just a different trigger (a changing row count mid-session instead of a coincidental one).
+That "correctness under concurrent writes" row isn't just a performance difference. Offset pagination can skip or duplicate rows under concurrent inserts - a real correctness bug, not just a speed one.
 
 **Recommendation: build infinite scroll on keyset pagination from the start**, not on `LIMIT`/`OFFSET`. The extra cost is small (one new index, a cursor helper) against inheriting a scaling problem that was already named and deferred once, and then having to redo the work later anyway.
 
@@ -119,7 +119,7 @@ None of the four are part of the visual-redesign bonus by default - naming them 
 
 ## Pattern choices considered and declined
 
-Two suggestions came up for the interactive pieces above. Both are real, reasonable choices elsewhere - here's the actual reasoning for not using them in this project.
+Three suggestions came up for the pieces above. All three are real, reasonable choices elsewhere - here's the actual reasoning for not using them in this project.
 
 ### Turbo Frames (Hotwire) vs. React
 
@@ -145,6 +145,12 @@ Infinite scroll, live search, and sortable columns without a full page reload al
 | What it would add here | - | Nesting, mixins - neither used by any of the three proposed designs |
 
 **Declined for this project.** Sass earns its place when a stylesheet is complex enough that nesting and mixins meaningfully reduce duplication. None of the three design options need that - each is a single token set (palette plus two or three type roles) applied through CSS custom properties, which is already doing the real work (theme-swapping) in this app's existing artifacts. Adding a build-step dependency for authoring conveniences nothing here needs doesn't pay for itself.
+
+### Postgres search (`ILIKE` / `pg_trgm`) vs. Elasticsearch
+
+Named in "Search" above as the fix for name search at 100x scale: Postgres `ILIKE`/`pg_trgm`/full-text first, not Elasticsearch.
+
+**Declined for this project.** Elasticsearch is a stronger tool, but for a bigger problem than this app has - relevance ranking, typo tolerance, and full-text search across millions of documents, not "find a product by part of its name" across a few tens of thousands of rows even at 100x scale. It's also a second system to run and keep in sync with Postgres, normally via save callbacks that this app's `insert_all`-based imports skip entirely - the same sync problem already named for `counter_cache`, and worse, since it means operating a whole second service rather than one Rails-maintained column. Worth it at millions of documents, or for fuzzy relevance tuning `pg_trgm` genuinely can't do - not at this app's scale. Full reasoning in `DESIGN_REVIEW.md`, round 2.
 
 ## A forward-looking note, not built now
 

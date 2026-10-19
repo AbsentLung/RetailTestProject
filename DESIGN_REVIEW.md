@@ -56,6 +56,20 @@ A second review pass on `DESIGN_PROPOSAL.md` as it stood after round 2, with spe
 
 **Added: a suggested scope**, not adopted automatically - Option A (responsive, optional dark theme via the same CSS custom properties already in use), alerts filters (open/resolved, by brand), keyset infinite scroll on tracking events and alerts specifically, and CSV export of alerts as a small optional add. Name search and count sorting skipped by default: real implementation cost, on tables small enough today that the payoff is mostly saving a page-flip.
 
+## Round 5 — Four small fixes, then approved
+
+A review pass on `DESIGN_PROPOSAL_FINAL.md` as it stood after round 3, confirming everything from that round was addressed and raising four more small items. All four confirmed and fixed; none were blockers.
+
+**Elasticsearch wasn't named as a declined choice.** It had been discussed and declined in round 2 above, but never added to `DESIGN_PROPOSAL_FINAL.md`'s own "Pattern choices considered and declined" section alongside React and Sass - the other two declined choices for the same bonus round. Added as a third entry there, condensed from round 2's reasoning rather than repeating it in full.
+
+**Option C's mockup zero-padded tracking-event counts (`0892`, `0441`).** The same problem as round 3's F7 (`snake_case` product names), a smaller version - a theme choice changing the actual data on screen. Fixed the same way: real numbers shown as-is, and the existing "Correction from the mockup" note extended to cover both.
+
+**"Four things worth architecting" actually listed five** (search, sorting, date range filtering, infinite scroll, CSV export). A miscount from when CSV export was added after the heading was written. Fixed to "Five things."
+
+**The concurrent-writes comparison named the wrong bug.** The row comparing offset vs. keyset pagination's behavior under concurrent writes went on to compare it to "the exact-multiple-page edge case already found and fixed this session" - but that bug was about whether a "Next" link displays correctly at an exact page-count boundary, not about rows shifting during concurrent writes. Different bug, different cause; the comparison didn't hold up. Also flagged as narration ("this session") that doesn't belong in a document meant to be read later. Deleted the sentence - the table row already states the real claim on its own.
+
+**Approved.** Build order: Option A (responsive, optional dark theme), then alerts filters, then keyset infinite scroll, then CSV export - the suggested scope from round 3, taken as-is. Staying on `proposed-changes-new-design`; `proposed-changes-joey` doesn't change.
+
 ---
 
 **A note on naming, after round 3.** `DESIGN_PROPOSAL.md` is now two files, matching how `INITIAL_PROPOSAL.md` / `REVIEWED_PROPOSAL.md` / `FINAL_PROPOSAL.md` work for the main feature: `DESIGN_PROPOSAL_INITIAL.md` is frozen at exactly the state before round 3's edits (rounds 1 and 2 were always clarified here, never edited into the document itself, so nothing changes there); `DESIGN_PROPOSAL_FINAL.md` carries round 3's corrections and the suggested scope, and is the one that keeps getting updated as review continues. The references to `DESIGN_PROPOSAL.md` by its old name in rounds 1-3 above are left as they were written, since that was its real name at the time.
