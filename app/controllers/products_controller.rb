@@ -108,17 +108,11 @@ class ProductsController < ApplicationController
   def event_sort_url(key)
     config = EVENT_SORTS.fetch(key)
     direction = @event_sort == key ? (@event_direction == :asc ? "desc" : "asc") : config[:direction].to_s
-    # request.query_parameters is an ActiveSupport::HashWithIndifferentAccess,
-    # which normalizes every key it stores - including a merged-in :anchor -
-    # to a String. Rails' URL generation only recognizes a literal Symbol
-    # :anchor key as "pull this out as the URL fragment"; a HashWithIndifferentAccess
-    # holding "anchor" as a String key instead falls through as an ordinary
-    # query param. Verified directly: the identical merge against a plain
-    # Hash (or request.query_parameters.to_h) keeps :anchor a real Symbol and
-    # extracts the fragment correctly - it's specifically this class, not
-    # "calling through a helper_method" or "mixed string/symbol keys" in
-    # general. Building the URL as a string and appending the fragment
-    # sidesteps the whole question.
+    # request.query_parameters is a HashWithIndifferentAccess, which
+    # normalizes a merged-in :anchor to a String key - and Rails' URL
+    # generation only extracts a literal Symbol :anchor as the fragment, so
+    # it would fall through as an ordinary query param. Appending the
+    # fragment to the string directly sidesteps that.
     "#{product_path(@product, request.query_parameters.except("before", "after", "event_sort", "event_direction").merge(event_sort: key, event_direction: direction))}#tracking-events"
   end
 end

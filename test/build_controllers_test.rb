@@ -34,7 +34,8 @@ class BuildControllersTest < ActiveSupport::TestCase
         committed_dir = Rails.root.join("app/javascript/controllers")
         built_names = Dir.glob("#{scratch_dir}/*.js").map { |f| File.basename(f) }
         drifted = built_names.reject do |name|
-          File.read(File.join(scratch_dir, name)) == File.read(committed_dir.join(name))
+          committed_path = committed_dir.join(name)
+          committed_path.exist? && File.read(File.join(scratch_dir, name)) == File.read(committed_path)
         end
 
         assert drifted.empty?,

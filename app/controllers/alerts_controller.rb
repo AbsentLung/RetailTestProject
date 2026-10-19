@@ -125,12 +125,13 @@ class AlertsController < ApplicationController
     end
   end
 
-  # A cell starting with =, +, -, or @ is run as a formula by whatever
+  # A cell starting with =, +, -, @, or a leading tab/carriage return (the
+  # full OWASP CSV-injection list) is run as a formula by whatever
   # spreadsheet app opens this export, not displayed as text. This app's
   # data is fictional, so the real-world risk is low, but every exported
   # value traces back to a brand/product/store name entered at import
   # time - prefixing with a literal quote defuses it either way.
-  FORMULA_PREFIXES = %w[= + - @].freeze
+  FORMULA_PREFIXES = ["=", "+", "-", "@", "\t", "\r"].freeze
 
   def csv_safe(value)
     FORMULA_PREFIXES.include?(value[0]) ? "'#{value}" : value

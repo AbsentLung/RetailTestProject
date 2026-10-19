@@ -169,6 +169,14 @@ The filter form had a second issue after the first fix: its `action` attribute c
 
 **A file rename, for naming consistency.** `DESIGN_REVIEW.md` (this file) is renamed to `DESIGN_REVIEWED_PROPOSAL.md`, matching the existing `INITIAL_PROPOSAL.md` / `REVIEWED_PROPOSAL.md` / `FINAL_PROPOSAL.md` naming already used for the main feature's own docs, the same way round 3's `DESIGN_PROPOSAL_INITIAL.md` / `DESIGN_PROPOSAL_FINAL.md` split already followed it. Every reference to the old filename - in `DESIGN_PROPOSAL_FINAL.md`, `DESIGN_IMPLEMENTATION_REPORT.md`, `alerts_controller.rb`, and `alerts_filter_controller.tsx` - was updated alongside the rename.
 
+## Round 13 — A fifth external review pass: a comment trimmed to size, two more OWASP-listed CSV characters, and a crash in the build-drift test's own failure path
+
+**A 12-line comment for one line of code.** `event_sort_url`'s `anchor:` explanation, written in round 12 to replace a comment that admitted "didn't repro in isolation," overcorrected into a full root-cause essay. Trimmed to three lines - the mechanism (`HashWithIndifferentAccess` stringifies `:anchor`) and the fix, nothing more.
+
+**`csv_safe` covered OWASP's CSV-injection list partially.** `=`, `+`, `-`, `@` were there; a leading tab (`\t`) or carriage return (`\r`) - also on OWASP's list, since some spreadsheet parsers treat them as leading whitespace before a formula character - weren't. Added both to `FORMULA_PREFIXES`.
+
+**The build-drift test crashed instead of failing cleanly on a new, uncommitted source file.** `File.read` on the committed side raised `Errno::ENOENT` when a `.ts`/`.tsx` file was added with no `.js` counterpart committed yet - a real scenario (writing a new controller, running tests before the first build), not a hypothetical. Reproduced directly: added a throwaway `.ts` file, watched the test error instead of failing with the intended message, fixed with an `exist?` check before the comparison, confirmed the same scenario now fails with the clear "out of sync" message instead of a stack trace, then removed the throwaway file.
+
 ---
 
 **A note on naming, after round 3.** `DESIGN_PROPOSAL.md` is now two files, matching how `INITIAL_PROPOSAL.md` / `REVIEWED_PROPOSAL.md` / `FINAL_PROPOSAL.md` work for the main feature: `DESIGN_PROPOSAL_INITIAL.md` is frozen at exactly the state before round 3's edits (rounds 1 and 2 were always clarified here, never edited into the document itself, so nothing changes there); `DESIGN_PROPOSAL_FINAL.md` carries round 3's corrections and the suggested scope, and is the one that keeps getting updated as review continues. The references to `DESIGN_PROPOSAL.md` by its old name in rounds 1-3 above are left as they were written, since that was its real name at the time.
