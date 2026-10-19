@@ -70,4 +70,70 @@ class KeysetPageTest < ActiveSupport::TestCase
     assert_nil page.next_cursor
     assert_nil page.prev_cursor
   end
+
+  # Alerts' sort-by-brand/product/store and sort-by-status use a joined
+  # column and a computed boolean, respectively - neither is a plain
+  # attribute KeysetPage's default `row.public_send(column)` extractor can
+  # read, so each needs its own `value:` proc and (for the joined case) a
+  # qualified id_column to stay unambiguous. These were verified against
+  # real data via bin/rails runner during review, round 7 - committed here
+  # so that verification survives as a regression test, not just a
+  # one-off script.
+  def make_alert(brand:, store:, triggered_at:, resolved_at: nil)
+    product = Product.create!(name: "Product #{SecureRandom.hex(4)}", brand: brand)
+    first = TrackingEvent.create!(product: product, store: store, event_time: triggered_at - 1.hour, inventory_present: false)
+    second = TrackingEvent.create!(product: product, store: store, event_time: triggered_at, inventory_present: false)
+    Alert.create!(brand: brand, product: product, store: store, first_event: first, second_event: second,
+      triggered_at: triggered_at, resolved_at: resolved_at)
+  end
+
+  test "sorting by a joined column (brand name) crosses a page boundary in order" do
+    store = Store.create!(address: "1 Joined Sort Ave")
+    brand_a = Brand.create!(name: "AAA Brand")
+    brand_m = Brand.create!(name: "MMM Brand")
+    brand_z = Brand.create!(name: "ZZZ Brand")
+    alert_a = make_alert(brand: brand_a, store: store, triggered_at: 3.days.ago)
+    alert_m = make_alert(brand: brand_m, store: store, triggered_at: 2.days.ago)
+    alert_z = make_alert(brand: brand_z, store: store, triggered_at: 1.day.ago)
+
+    scope = Alert.eager_load(:brand)
+    column = "brands.name"
+    id_column = "alerts.id"
+    value = ->(a) { a.brand.name }
+
+    first_page = KeysetPage.new(scope, column: column, id_column: id_column, direction: :asc, value: value, limit: 2)
+    assert_equal [alert_a, alert_m], first_page.rows
+    assert_not_nil first_page.next_cursor
+
+    second_page = KeysetPage.new(scope, column: column, id_column: id_column, direction: :asc, value: value,
+      after: first_page.next_cursor, limit: 2)
+    assert_equal [alert_z], second_page.rows
+    assert_nil second_page.next_cursor
+  end
+
+  test "sorting by the computed status boolean crosses the open/resolved boundary in order" do
+    brand = Brand.create!(name: "Status Sort Brand")
+    store = Store.create!(address: "1 Status Sort Ave")
+    open_a = make_alert(brand: brand, store: store, triggered_at: 4.days.ago)
+    open_b = make_alert(brand: brand, store: store, triggered_at: 3.days.ago)
+    resolved_a = make_alert(brand: brand, store: store, triggered_at: 2.days.ago, resolved_at: 1.day.ago)
+    resolved_b = make_alert(brand: brand, store: store, triggered_at: 1.day.ago, resolved_at: 12.hours.ago)
+
+    scope = Alert.all
+    column = "(alerts.resolved_at IS NOT NULL)"
+    id_column = "alerts.id"
+    value = ->(a) { a.resolved_at.present? }
+
+    # Ascending: false (open) sorts before true (resolved) - open alerts
+    # should fill every page before a resolved one ever appears.
+    first_page = KeysetPage.new(scope, column: column, id_column: id_column, direction: :asc, value: value, limit: 2)
+    assert_equal [open_a, open_b].sort_by(&:id), first_page.rows.sort_by(&:id)
+    assert first_page.rows.none? { |a| a.resolved_at.present? }
+
+    second_page = KeysetPage.new(scope, column: column, id_column: id_column, direction: :asc, value: value,
+      after: first_page.next_cursor, limit: 2)
+    assert_equal [resolved_a, resolved_b].sort_by(&:id), second_page.rows.sort_by(&:id)
+    assert second_page.rows.all? { |a| a.resolved_at.present? }
+    assert_nil second_page.next_cursor
+  end
 end

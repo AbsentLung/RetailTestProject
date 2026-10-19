@@ -75,23 +75,24 @@ Alerts and the tracking-event lists combine sorting with keyset pagination. Ever
 
 `LIMIT 50 OFFSET N` gets slower the deeper a page is, because Postgres has to scan and discard every skipped row first. Alerts and the tracking-event lists use keyset pagination instead (`WHERE (sort_column, id) < (last_seen_value, last_seen_id) ORDER BY sort_column DESC, id DESC LIMIT 50`), so query cost stays flat no matter how many pages someone clicks through - "Previous"/"Next" links, 50 rows per page, each click a real page navigation.
 
-**Database changes:**
-- Products/stores/brands (ordered by name/address): **no new index** - already uniquely indexed, which is exactly what a keyset cursor needs to anchor on.
-- Alerts (ordered by `triggered_at`): **one new index**, `(triggered_at, id)`.
-- Tracking events / price history (ordered by `event_time`, scoped to a product or store): the keyset cursor is `(event_time, id)`, so the index is `(store_id, event_time, id)` / `(product_id, event_time, id)` - **one new column added to each existing composite index.** The current `(store_id, event_time)` / `(product_id, event_time)` get the scan most of the way there, but don't cover the `id` tiebreak for rows sharing the same `event_time` - without it, ties need an extra sort step rather than a single fully-ordered index scan.
+**Database changes, built:**
+- Products/stores/brands (ordered by name/address): none needed - already uniquely indexed, which is exactly what a keyset cursor needs to anchor on.
+- Alerts (ordered by `triggered_at`): a new `(triggered_at, id)` index.
+- Tracking events / price history (ordered by `event_time`, scoped to a product or store): the keyset cursor is `(event_time, id)`, so the index is `(store_id, event_time, id)` / `(product_id, event_time, id)` - `id` added as a trailing column to each existing composite index. The prior 2-column versions (`(store_id, event_time)` / `(product_id, event_time)`) got the scan most of the way there on their own, but didn't cover the `id` tiebreak for rows sharing the same `event_time` - without it, ties needed an extra sort step rather than a single fully-ordered index scan.
+- Alerts sorted by brand, product, or store: **no supporting index exists for this one.** The keyset comparison needs an index spanning the joined table's name column and `alerts.id` together; `products.name` and `stores.address` are uniquely indexed on their own, `brands.name` isn't indexed at all, and neither composes with `alerts.id` across a join. Correct today (verified against real data), not a single ordered index scan - a join, sort, and limit instead. Fine at 31k alerts; worth a real index if this table's row count or sort-by-name traffic both grow a lot.
 
 The GET-per-scroll question from `DESIGN_REVIEW.md`'s round 1 applies directly here - every "Next" click on `/alerts` and the tracking-event lists is one. Round 1's measurement (single-digit milliseconds at this app's real row counts, regardless of offset) was taken against `LIMIT`/`OFFSET`; the keyset queries here are cheaper still, since their cost doesn't grow with depth at all.
 
 #### Pagination vs. keyset (cursor): the actual tradeoff
 
-| | Offset pagination (today) | Keyset / cursor pagination |
+| | Offset pagination (products/stores/brands) | Keyset / cursor pagination (alerts, tracking events) |
 |---|---|---|
 | Query cost at page N | Grows with N - scans and discards every skipped row | Constant, regardless of scroll depth |
 | "Jump to page 12" | Yes | No - only next/previous from a cursor |
 | Total page count ("page 3 of 40") | Cheap-ish (one extra `COUNT`) | Not naturally available at all |
 | New indexes needed | None | One new index for `alerts`; `id` added as a trailing column to the existing tracking-event/price-history composite indexes; products/stores/brands reuse their existing unique indexes as-is |
 | Correctness under concurrent writes | Can skip or repeat rows if the underlying set changes between page loads | Stable - a cursor anchored to a specific row is unaffected by rows inserted elsewhere |
-| Implementation complexity | Already built | Needs a cursor encode/decode step, and validating a client-supplied token instead of a trusted integer page number |
+| Implementation complexity | Lower | A cursor encode/decode step, and validating a client-supplied token instead of a trusted integer page number |
 
 That "correctness under concurrent writes" row isn't just a performance difference. Offset pagination can skip or duplicate rows under concurrent inserts - a real correctness bug, not just a speed one.
 
@@ -107,6 +108,37 @@ None of the five are part of the visual-redesign bonus by default - naming them 
 
 A few suggestions came up for the pieces above. Here's the actual reasoning for each.
 
+### Architecture at a glance
+
+Two flows worth seeing together: what happens on every request (almost everything server-rendered, one React island as the exception), and what happens only when editing the TypeScript source (never at request time - the compiled output is committed).
+
+```mermaid
+flowchart TB
+  subgraph Build["Build time (only when editing controllers_src)"]
+    direction LR
+    SRC["controllers_src/*.ts / *.tsx"] --> TSC["tsc --noEmit - type-check"]
+    SRC --> ESB["esbuild - strip types, transform JSX"]
+    ESB --> OUT["app/javascript/controllers/*.js - committed"]
+  end
+
+  subgraph Request["Every request"]
+    direction LR
+    Browser["Browser"] --> Rails["Rails controller"]
+    Rails -->|format.html| ERB["ERB / Turbo pages"]
+    Rails -->|format.json| API["/alerts.json"]
+    Rails -->|format.csv| CSV["CSV export"]
+    Browser -->|mounts| React["React alerts island"]
+    React -->|fetch| API
+    ERB --> PG["Postgres"]
+    API --> PG
+    CSV --> PG
+  end
+
+  OUT -.->|served via importmap| React
+```
+
+The dotted edge is the only link between the two halves: the build step's output is a committed file, served like any other asset - nothing about handling a request ever invokes `tsc` or `esbuild`.
+
 ### Turbo Frames (Hotwire) vs. React
 
 Live-applying filters and sortable columns without a full page reload need *some* client-side interactivity. The two real candidates:
@@ -115,11 +147,12 @@ Live-applying filters and sortable columns without a full page reload need *some
 |---|---|---|
 | New dependency | None - already in this app's importmap, unused | A full JS framework, plus a build step |
 | Rendering model | Same as the rest of the app - server-rendered ERB, swapped in fragments | A second, parallel rendering model alongside the existing ERB views |
-| Fits keyset-paginated lists | Directly - a `turbo_frame_tag` lazy-loaded via its own `src` is the standard pattern | Works, but needs a JSON API underneath either way, since React doesn't render ERB |
-| Handles multi-piece client state (filters + sort + a cursor, kept in sync without a reload) | Workable, but means hand-patching the DOM for every new piece of state that has to interact with the others | Built for exactly this - state changes, the view re-renders itself |
+| Can it keep filters + sort + a cursor in sync without a reload | Yes - a GET form and links targeting the same frame do this declaratively, server-rendered each time, no client-side state to hand-patch | Yes, with its own client-side state and re-render |
 | Consistency with the rest of the codebase | High - the whole app is server-rendered today | Low for most pages - a deliberate exception, not the default |
 
-**React, scoped to the alerts filter UI specifically.** Turbo Frames is the right choice almost everywhere in this app - same rendering model as every other page, no new dependency, a direct fit for the keyset-paginated lists. It's a weaker fit for exactly one piece: the alerts filter UI, which has to keep status, brand, sort, and a pagination cursor all in sync without a reload - real multi-piece client state, the kind a framework's render model handles and hand-rolled DOM patching doesn't. React is used there and nowhere else. The tracking-event filters auto-submit a real navigation on change (a small Stimulus controller just triggers it, nothing more); live store search is the one other place that needs to update without a reload, and does its own debounced fetch-and-replace - real JS, but not a second rendering framework. Sort links and pagination stay plain server-rendered links everywhere.
+**React, scoped to the alerts filter UI, as deliberate groundwork, not a technical requirement.** Turbo Frames genuinely can do what the alerts filter UI needs - a GET form and links targeting the same frame keep status, brand, sort, and a cursor in sync without a reload, same as everywhere else in this app, no hand-patched DOM required. The real reason this one piece uses React: this project is expected to grow more complex client-side logic over time, and having React and TypeScript already wired in - the build step, the importmap pins, the pattern for mounting a component - pays off more as that happens, than waiting until a feature that "needs" it shows up. That's a legitimate reason to pick React here; "Turbo can't do this" wouldn't have been one. React is used in exactly this one place and nowhere else. The tracking-event filters auto-submit a real navigation on change (a small Stimulus controller just triggers it, nothing more); live store search is the one other place that updates without a reload, via its own debounced fetch-and-replace - real JS, but not a second rendering framework. Sort links and pagination stay plain server-rendered links everywhere.
+
+**The alerts filter UI's data path.** The mounted React component fetches `GET /alerts.json` - the same `AlertsController#index` action the server-rendered page and the CSV export both use, with `format.json` added alongside `format.html` and `format.csv`. All three read the identical filtered, sorted scope built once at the top of the action, so there's no separate "API" code path to drift from what the page itself shows. The JSON response carries the rows plus the keyset cursor tokens the component needs to page forward/back - the same cursor shape `KeysetPage` already produces for the HTML view, just serialized instead of rendered. This is also the shape a future mobile client's API would start from, per the forward-looking note below - not built as an API today, but not a dead end either.
 
 **React Native specifically** (raised separately, as "an easy path to a mobile app later") doesn't actually shorten that path the way it might seem to. React Native doesn't render React *web* views - there's no `<div>`/`<table>` in React Native, only native components (`<View>`, `<FlatList>`, etc.) - so a future native app's UI gets built from scratch regardless of what today's website uses. What *does* make a future native app easier is a clean JSON API underneath, which is a backend concern, independent of the website's rendering choice. See the forward-looking note below.
 
@@ -132,6 +165,11 @@ Live-applying filters and sortable columns without a full page reload need *some
 | What changes for importmap-rails | Nothing - files are served as-written | Still served as plain `.js` - source lives in `app/javascript/controllers_src/*.ts(x)`, compiled output lands where importmap already expects it |
 
 **TypeScript, for the interactive controllers.** The honest cost: a build step that has to actually run (and its output committed or regenerated) for the interactive controllers to work at all - a new way for the app to be broken that the rest of this fully server-rendered app doesn't have. Worth it because it catches a real, recurring class of mistake - type errors and typos - before they reach the browser, which matters more than usual on AI-assisted code. The same build step also makes React, above, cheap to add on top, rather than two separate decisions each paying their own setup cost.
+
+**The three questions a homemade build step raises, answered plainly** (a standard tool like `jsbundling-rails` would answer these the same way, just with less custom wiring - staying with the homemade version here since it's already built and tested, not because it's the better long-term choice if this grows further):
+- **Is the compiled output committed?** Yes. `app/javascript/controllers/*.js` (compiled from `controllers_src/*.ts(x)`) is checked in like any other asset, not generated at deploy time.
+- **How does React load - bundled or pinned from a CDN?** Neither exactly: it's vendored. `bin/importmap pin react react-dom/client` downloaded React's ESM build once into `vendor/javascript/`, and that local copy is committed and served by Sprockets - no CDN request at runtime, no bundling into one file either.
+- **Does `bin/rails test` or a fresh clone need Node?** No, to run the app or the test suite - the compiled JS and vendored React are already committed, so `bundle install` and Postgres are all a fresh clone needs. Node and `npm install` are only needed to *edit* the TypeScript source and regenerate the compiled output (`npm run build`) - a dev-time tool, not a runtime dependency.
 
 ### Plain CSS (current) vs. Sass
 

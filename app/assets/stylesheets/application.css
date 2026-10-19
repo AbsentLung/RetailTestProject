@@ -263,15 +263,18 @@ td.num, th.num {
   color: var(--color-ink-muted);
 }
 
-.filter-field select {
+.filter-field select,
+.filter-field input[type="text"],
+.filter-field input[type="search"],
+.filter-field input[type="date"] {
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--color-ink);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 7px 10px;
-  min-width: 160px;
+  padding: 6px 9px;
+  width: 150px;
 }
 
 .btn-filter {
