@@ -278,7 +278,7 @@ add_index :tracking_events, [:product_id, :store_id, :event_time, :id]
 # no separate single-column index on product_id or store_id — redundant once the above exist
 ```
 
-Measured, not estimated: the store with the most events (10,167) went from **20,341 queries / 5,946.9ms** to **3 queries / 26.3ms** rendering its show page — roughly 230x faster, and the query count drops from two-per-event to a fixed three regardless of how many events exist.
+Measured, not estimated: the store with the most events (10,167) went from **20,341 queries / 5,946.9ms** to **3 queries / 26.3ms** rendering its show page — roughly 230x faster, and the query count drops from two-per-event to a fixed three regardless of how many events exist. This was measured before price history was added to the page; `IMPLEMENTATION_REPORT.md` has the real post-build number (6 queries / 21ms, ~283x) once that feature's own query is included.
 
 ### Coverage, style & structure
 
