@@ -38,7 +38,7 @@
     </tr>
   </thead>
   <tbody>
-    <% @events.each do |event| %>
+    <% @events.first(Paginatable::PER_PAGE).each do |event| %>
       <tr>
         <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
         <td><%= event.inventory_present ? "Yes" : "No" %></td>

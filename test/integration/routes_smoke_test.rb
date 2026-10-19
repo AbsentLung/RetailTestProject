@@ -40,4 +40,12 @@ class RoutesSmokeTest < ActionDispatch::IntegrationTest
     get alert_path(alert)
     assert_response :success
   end
+
+  test "Next isn't shown when the row count is an exact multiple of PER_PAGE" do
+    Paginatable::PER_PAGE.times { |n| Brand.create!(name: "Exact Multiple Brand #{n}") }
+
+    get brands_path
+    assert_response :success
+    assert_no_match "Next", response.body, "a full last page isn't the same as a page with more after it"
+  end
 end

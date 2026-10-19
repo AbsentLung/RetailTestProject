@@ -9,7 +9,7 @@
     </tr>
   </thead>
   <tbody>
-    <% @brands.each do |brand| %>
+    <% @brands.first(Paginatable::PER_PAGE).each do |brand| %>
       <tr>
         <td><%= brand.name %></td>
         <td><%= @product_counts.fetch(brand.id, 0) %></td>

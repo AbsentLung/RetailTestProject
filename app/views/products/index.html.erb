@@ -10,7 +10,7 @@
     </tr>
   </thead>
   <tbody>
-    <% @products.each do |product| %>
+    <% @products.first(Paginatable::PER_PAGE).each do |product| %>
       <tr>
         <td><%= product.name %></td>
         <td><%= product.brand&.name %></td>

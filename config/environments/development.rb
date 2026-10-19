@@ -39,6 +39,11 @@ Rails.application.configure do
   # Don't care if the mailer can't send.
   config.action_mailer.raise_delivery_errors = false
 
+  # No real SMTP credentials exist for this project yet - :test appends to
+  # ActionMailer::Base.deliveries instead of attempting a real connection.
+  # This would become :smtp with real credentials if the app went live.
+  config.action_mailer.delivery_method = :test
+
   config.action_mailer.perform_caching = false
 
   # Print deprecation notices to the Rails logger.
