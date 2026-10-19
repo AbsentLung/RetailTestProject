@@ -2,10 +2,11 @@ class AlertsController < ApplicationController
   STATUSES = %w[open resolved].freeze
 
   def index
-    scope = Alert.includes(:brand, :product, :store).order(triggered_at: :desc)
+    scope = Alert.includes(:brand, :product, :store)
     scope = filter_by_status(scope)
     scope = filter_by_brand(scope)
-    @alerts = paginate(scope)
+    @page = KeysetPage.new(scope, column: :triggered_at, after: params[:after], before: params[:before])
+    @alerts = @page.rows
     @status = params[:status] if STATUSES.include?(params[:status])
     @brand_id = params[:brand_id].presence
     @brands = Brand.order(:name)

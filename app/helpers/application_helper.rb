@@ -14,6 +14,15 @@ module ApplicationHelper
     content_tag(:nav, safe_join(links, " "), class: "pagination")
   end
 
+  def keyset_pagination_links(page)
+    links = []
+    base = request.query_parameters.except("before", "after")
+    links << link_to("&laquo; Previous".html_safe, url_for(base.merge(before: page.prev_cursor))) if page.prev_cursor
+    links << link_to("Next &raquo;".html_safe, url_for(base.merge(after: page.next_cursor))) if page.next_cursor
+    return "".html_safe if links.empty?
+    content_tag(:nav, safe_join(links, " "), class: "pagination")
+  end
+
   def nav_link(text, path, section)
     classes = ["nav-link"]
     classes << "active" if params[:controller] == section

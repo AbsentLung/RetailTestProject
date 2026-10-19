@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_18_210000) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_18_220000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -28,6 +28,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_18_210000) do
     t.index ["product_id"], name: "index_alerts_on_product_id"
     t.index ["second_event_id"], name: "index_alerts_on_second_event_id", unique: true
     t.index ["store_id"], name: "index_alerts_on_store_id"
+    t.index ["triggered_at", "id"], name: "index_alerts_on_triggered_at_and_id"
   end
 
   create_table "brands", force: :cascade do |t|
@@ -79,9 +80,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_18_210000) do
     t.datetime "event_time", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["product_id", "event_time"], name: "index_tracking_events_on_product_id_and_event_time"
+    t.index ["product_id", "event_time", "id"], name: "index_tracking_events_on_product_id_and_event_time_and_id"
     t.index ["product_id", "store_id", "event_time", "id"], name: "index_tracking_events_on_product_store_event_id"
-    t.index ["store_id", "event_time"], name: "index_tracking_events_on_store_id_and_event_time"
+    t.index ["store_id", "event_time", "id"], name: "index_tracking_events_on_store_id_and_event_time_and_id"
   end
 
   add_foreign_key "alerts", "brands"

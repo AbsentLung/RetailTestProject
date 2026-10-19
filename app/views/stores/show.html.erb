@@ -36,7 +36,7 @@
 <% end %>
 
 <div class="card">
-  <h2>Tracking Events (page <%= params[:page].to_i.clamp(1..) %>)</h2>
+  <h2>Tracking Events</h2>
   <div class="table-wrap">
     <table>
       <thead>
@@ -48,7 +48,7 @@
         </tr>
       </thead>
       <tbody>
-        <% @events.first(Paginatable::PER_PAGE).each do |event| %>
+        <% @events.each do |event| %>
           <tr>
             <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
             <td><%= event.inventory_present ? "Yes" : "No" %></td>
@@ -59,7 +59,7 @@
       </tbody>
     </table>
   </div>
-  <%= pagination_links(@events) %>
+  <%= keyset_pagination_links(@events_page) %>
 </div>
 
 <nav>
