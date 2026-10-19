@@ -177,6 +177,16 @@ The filter form had a second issue after the first fix: its `action` attribute c
 
 **The build-drift test crashed instead of failing cleanly on a new, uncommitted source file.** `File.read` on the committed side raised `Errno::ENOENT` when a `.ts`/`.tsx` file was added with no `.js` counterpart committed yet - a real scenario (writing a new controller, running tests before the first build), not a hypothetical. Reproduced directly: added a throwaway `.ts` file, watched the test error instead of failing with the intended message, fixed with an `exist?` check before the comparison, confirmed the same scenario now fails with the clear "out of sync" message instead of a stack trace, then removed the throwaway file.
 
+## Round 14 — A sixth external review pass: the proposal's own opening still read as if nothing had been built
+
+**The opening paragraph was written for a reader with the artifact open, and before anything existed.** "Proposed before any app files change" and "the rendered comparison is in the artifact" meant nothing once Option A had actually been built - an interviewer reading this file cold has no artifact open, and "the artifact" names nothing for them. Rewritten to state what happened: three directions were mocked up, Option A was chosen and built, this file records what each option was and the decisions made building it.
+
+**"No new dependencies in any of the three" became false the moment React and TypeScript were added**, even though it was true for CSS specifically when written. Narrowed to "No new CSS dependencies."
+
+**"Nothing in `app/` changes until one is picked" was stale** - everything had changed by the time this sentence was being read. The section it sits in, comparing the three mockups, is itself now a historical record rather than a live caveat; retitled and reworded to say so plainly, including the "Responsive layout is a requirement for whichever direction gets picked" line just below it, now past tense.
+
+**Two more "the artifact" references, meaningless outside this conversation:** "the artifact's first pass" (describing an early mockup correction) and "the house artifact style" (a design-system convention from Claude's own artifact-authoring tooling, not something in this app) - reworded to "an early mockup pass" and dropped respectively. A third, similar reference ("this app's existing artifacts") caught in the same pass and changed to "the app's own stylesheet," since that's what's actually true now that Option A is built.
+
 ---
 
 **A note on naming, after round 3.** `DESIGN_PROPOSAL.md` is now two files, matching how `INITIAL_PROPOSAL.md` / `REVIEWED_PROPOSAL.md` / `FINAL_PROPOSAL.md` work for the main feature: `DESIGN_PROPOSAL_INITIAL.md` is frozen at exactly the state before round 3's edits (rounds 1 and 2 were always clarified here, never edited into the document itself, so nothing changes there); `DESIGN_PROPOSAL_FINAL.md` carries round 3's corrections and the suggested scope, and is the one that keeps getting updated as review continues. The references to `DESIGN_PROPOSAL.md` by its old name in rounds 1-3 above are left as they were written, since that was its real name at the time.

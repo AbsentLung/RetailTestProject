@@ -1,8 +1,8 @@
 # Design Proposal
 
-A bonus visual pass over the app, proposed before any app files change. Three concrete directions, same sample content in each so the only variable is the design itself. The rendered comparison is in the artifact; this file is the written record of what each one actually is.
+A bonus visual pass over the app. Three concrete directions were mocked up with the same sample content, so the only variable was the design itself; Option A (Quiet Ledger) was chosen and built. This file records what each option was and the decisions made while building it.
 
-No new dependencies in any of the three - hand-rolled CSS through the existing Sprockets pipeline (`app/assets/stylesheets/application.css`), consistent with this project's stance against adding a gem for something plain CSS already does.
+No new CSS dependencies in any of the three - hand-rolled CSS through the existing Sprockets pipeline (`app/assets/stylesheets/application.css`), consistent with this project's stance against adding a gem for something plain CSS already does.
 
 ## Option A — Quiet Ledger
 
@@ -30,13 +30,13 @@ Dark-mode-first, built for scanning a lot of rows fast - fitting, given the real
 - **Type.** IBM Plex Mono for everything, headings included - a deliberate terminal/console feel rather than a typical CRUD-app look.
 - **Layout.** Dense tables, minimal row padding. Alert status isn't a badge at all - it's a colored left-border bar on the row itself, like a log line.
 - **Where it fits.** The most opinionated option. Best if the alert system (the app's actual headline feature) should visually dominate, at the cost of looking less like a conventional admin panel.
-- **Correction from the mockup:** the artifact's first pass rewrote real product names into `snake_case` (`chocolate_frogs`) for the terminal aesthetic, and zero-padded tracking-event counts (`0892`) for the same reason. Both change the actual data on screen, not just its styling - a real product named "Chocolate Frogs" shouldn't display as something else, and a count of 892 isn't 0892, because of a theme choice. Both dropped from the mockup regardless of which option gets picked.
+- **Correction from an early mockup pass:** it rewrote real product names into `snake_case` (`chocolate_frogs`) for the terminal aesthetic, and zero-padded tracking-event counts (`0892`) for the same reason. Both change the actual data on screen, not just its styling - a real product named "Chocolate Frogs" shouldn't display as something else, and a count of 892 isn't 0892, because of a theme choice. Both dropped before any option was picked.
 
-## What stays the same regardless of which one you pick
+## What stayed the same across the three mockups
 
-The same 4 sample products and 2 sample alerts (one ongoing, one resolved) appear in all three mockups, so the comparison is the design, not the data. Nothing in `app/` changes until one is picked - this file and the artifact are the proposal, not the implementation.
+The same 4 sample products and 2 sample alerts (one ongoing, one resolved) appeared in all three, so the comparison was the design, not the data. Option A was the one picked and built; this section is kept as a record of how the three were compared, not a statement about the app's current state.
 
-**Responsive layout is a requirement for whichever direction gets picked, not an extra.** "Viewable on mobile" was already settled earlier as a responsive-CSS question, independent of any framework choice - it belongs here as part of the actual scope, not left implicit.
+**Responsive layout was a requirement, not an extra, and Option A was built that way.** "Viewable on mobile" was already settled earlier as a responsive-CSS question, independent of any framework choice - it belongs here as part of the actual scope, not left implicit.
 
 ## Beyond the visual layer
 
@@ -182,10 +182,10 @@ Committing the compiled output instead of generating it at deploy time raises a 
 | | Plain CSS (current) | Sass |
 |---|---|---|
 | New dependency | None - the existing Sprockets pipeline | `dartsass-rails`, or a Node build step |
-| Theming mechanism | CSS custom properties - one token set, swapped per theme or per design option, already how all three options above and the house artifact style work | Variables + mixins - a different mechanism for the same job |
+| Theming mechanism | CSS custom properties - one token set, swapped per theme or per design option, already how all three options above work | Variables + mixins - a different mechanism for the same job |
 | What it would add here | - | Nesting, mixins - neither used by any of the three proposed designs |
 
-**Declined for this project.** Sass earns its place when a stylesheet is complex enough that nesting and mixins meaningfully reduce duplication. None of the three design options need that - each is a single token set (palette plus two or three type roles) applied through CSS custom properties, which is already doing the real work (theme-swapping) in this app's existing artifacts. Adding a build-step dependency for authoring conveniences nothing here needs doesn't pay for itself.
+**Declined for this project.** Sass earns its place when a stylesheet is complex enough that nesting and mixins meaningfully reduce duplication. None of the three design options need that - each is a single token set (palette plus two or three type roles) applied through CSS custom properties, which is already doing the real work (theme-swapping) in the app's own stylesheet. Adding a build-step dependency for authoring conveniences nothing here needs doesn't pay for itself.
 
 ### Postgres search (`ILIKE` / `pg_trgm`) vs. Elasticsearch
 
