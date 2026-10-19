@@ -1,6 +1,6 @@
 # Summary of Actions
 
-This is the README's requested "brief README or notes document explaining your key decisions" — but about the *process*, not the technical detail. The technical detail already exists, in full, in five other documents this process produced. This one is the map: how this submission actually got built, using Claude Code, and why it was built that way.
+The key decisions themselves are in `README.md`. This is the longer version: how this submission actually got built using Claude Code, and the process that produced those decisions — proposed, reviewed 18 times, approved, implemented, then reviewed again against the real code.
 
 ## The result, in numbers
 
