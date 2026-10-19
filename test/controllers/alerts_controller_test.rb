@@ -1,0 +1,68 @@
+require "test_helper"
+
+class AlertsControllerTest < ActionDispatch::IntegrationTest
+  setup do
+    @brand_a = Brand.create!(name: "Brand A")
+    @brand_b = Brand.create!(name: "Brand B")
+    @store = Store.create!(address: "1 Filter St")
+
+    @open_alert = make_alert(brand: @brand_a)
+    @resolved_alert = make_alert(brand: @brand_b)
+    @resolved_alert.update!(resolved_at: 1.day.ago)
+  end
+
+  test "no filters shows every alert" do
+    get alerts_path
+    assert_response :success
+    assert_select "tbody tr", 2
+  end
+
+  test "status=open shows only unresolved alerts" do
+    get alerts_path(status: "open")
+    assert_response :success
+    assert_match @open_alert.product.name, response.body
+    assert_no_match @resolved_alert.product.name, response.body
+  end
+
+  test "status=resolved shows only resolved alerts" do
+    get alerts_path(status: "resolved")
+    assert_response :success
+    assert_match @resolved_alert.product.name, response.body
+    assert_no_match @open_alert.product.name, response.body
+  end
+
+  test "an unrecognized status value is ignored, not an error" do
+    get alerts_path(status: "bogus")
+    assert_response :success
+    assert_select "tbody tr", 2
+  end
+
+  test "brand_id filters to that brand's alerts only" do
+    get alerts_path(brand_id: @brand_a.id)
+    assert_response :success
+    assert_match @open_alert.product.name, response.body
+    assert_no_match @resolved_alert.product.name, response.body
+  end
+
+  test "status and brand_id combine" do
+    get alerts_path(status: "resolved", brand_id: @brand_a.id)
+    assert_response :success
+    assert_select "tbody tr", 0
+    assert_select ".empty-state"
+  end
+
+  test "pagination links preserve the active filters" do
+    get alerts_path(status: "open")
+    assert_response :success
+    assert_select "select#status option[value='open'][selected]"
+  end
+
+  private
+
+  def make_alert(brand:)
+    product = Product.create!(name: "Product for #{brand.name}", brand: brand)
+    first = TrackingEvent.create!(product: product, store: @store, event_time: 2.days.ago, inventory_present: false)
+    second = TrackingEvent.create!(product: product, store: @store, event_time: 1.day.ago, inventory_present: false)
+    Alert.create!(brand: brand, product: product, store: @store, first_event: first, second_event: second, triggered_at: second.event_time)
+  end
+end

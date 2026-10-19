@@ -3,6 +3,23 @@
 </div>
 
 <div class="card">
+  <%= form_with url: alerts_path, method: :get, local: true, class: "filter-row" do %>
+    <div class="filter-field">
+      <%= label_tag :status, "Status" %>
+      <%= select_tag :status, options_for_select([["All", ""], ["Open", "open"], ["Resolved", "resolved"]], @status || "") %>
+    </div>
+    <div class="filter-field">
+      <%= label_tag :brand_id, "Brand" %>
+      <%= select_tag :brand_id, options_for_select([["All brands", ""]] + @brands.map { |b| [b.name, b.id] }, @brand_id || "") %>
+    </div>
+    <button type="submit" class="btn-filter">Filter</button>
+    <% if @status || @brand_id %>
+      <%= link_to "Clear filters", alerts_path, class: "nav-link" %>
+    <% end %>
+  <% end %>
+</div>
+
+<div class="card">
   <div class="table-wrap">
     <table>
       <thead>
@@ -28,6 +45,9 @@
         <% end %>
       </tbody>
     </table>
+    <% if @alerts.empty? %>
+      <p class="empty-state">No alerts match these filters.</p>
+    <% end %>
   </div>
   <%= pagination_links(@alerts) %>
 </div>
