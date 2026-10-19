@@ -20,7 +20,7 @@
   <% end %>
 </div>
 
-<div class="card">
+<div class="card" data-controller="infinite-scroll">
   <div class="table-wrap">
     <table>
       <thead>
@@ -33,7 +33,7 @@
           <th></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody data-infinite-scroll-target="rows">
         <% @alerts.each do |alert| %>
           <tr>
             <td><%= link_to alert.brand.name, brand_path(alert.brand) %></td>

@@ -70,6 +70,18 @@ A review pass on `DESIGN_PROPOSAL_FINAL.md` as it stood after round 3, confirmin
 
 **Approved.** Build order: Option A (responsive, optional dark theme), then alerts filters, then keyset infinite scroll, then CSV export - the suggested scope from round 3, taken as-is. Staying on `proposed-changes-new-design`; `proposed-changes-joey` doesn't change.
 
+## Round 6 — "Keyset infinite scroll" was really keyset pagination, after Option A/filters/scroll/export were built
+
+**What was raised.** After Option A, the alerts filters, keyset pagination, and CSV export were all built and committed, a question surfaced about where the actual infinite-scroll behavior was - the UI only offered a "Previous"/"Next" link pair. It didn't auto-load as the page was scrolled.
+
+**The gap was real.** What round 3's suggested scope called "keyset infinite scroll" had been built as keyset *pagination* - the hard, valuable part (query cost that doesn't grow with depth, no skipped/duplicated rows under concurrent writes) - but exposed through ordinary link clicks, not through scrolling. That's a real difference from what `DESIGN_PROPOSAL_FINAL.md`'s infinite-scroll section actually described (auto-loading on scroll, with a "Load more" button as the named fallback, not the only way in).
+
+**Built properly**, auto-loading as the page scrolls, via actual GET requests the same way round 1 above measured: a small Stimulus controller watches the existing "Next" link with an `IntersectionObserver`, and fetches that link's own URL when it scrolls into view, appending the rows the response contains. The link stays in the DOM throughout - it's the fallback round 1's usability notes already called for, not a separate thing that needed building. Round 1's finding (GET-per-scroll isn't slow at this app's scale) was a measurement against hypothetical traffic at the time; it now describes what every scroll step on `/alerts` and the tracking-event lists actually does, and the keyset queries underneath are cheaper than what round 1 measured, not just as cheap.
+
+**One correction already named in round 1 was wrong in the other direction.** The original `turbo_frame_tag` plan in `DESIGN_PROPOSAL_FINAL.md`'s infinite-scroll section doesn't actually work: a `<turbo-frame>` placed inside a `<tbody>` gets foster-parented out of the table by the browser's HTML parser, since custom elements aren't valid table content there. Fixed in `DESIGN_PROPOSAL_FINAL.md` to describe what was actually buildable and built - Stimulus plus `fetch`, not a frame.
+
+**Also fixed:** the "Usability, not just the query" list now says which of its three pitfalls got solved by this build (the Load more fallback, by construction; the unreachable footer, since loading stops once there's no more "Next" to watch) and which didn't (the Back button still resets scroll position - the URL never changes as rows append, so that limitation stands as described, not silently dropped).
+
 ---
 
 **A note on naming, after round 3.** `DESIGN_PROPOSAL.md` is now two files, matching how `INITIAL_PROPOSAL.md` / `REVIEWED_PROPOSAL.md` / `FINAL_PROPOSAL.md` work for the main feature: `DESIGN_PROPOSAL_INITIAL.md` is frozen at exactly the state before round 3's edits (rounds 1 and 2 were always clarified here, never edited into the document itself, so nothing changes there); `DESIGN_PROPOSAL_FINAL.md` carries round 3's corrections and the suggested scope, and is the one that keeps getting updated as review continues. The references to `DESIGN_PROPOSAL.md` by its old name in rounds 1-3 above are left as they were written, since that was its real name at the time.

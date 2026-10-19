@@ -46,7 +46,7 @@
   </div>
 <% end %>
 
-<div class="card">
+<div class="card" data-controller="infinite-scroll">
   <h2>Tracking Events</h2>
   <div class="table-wrap">
     <table>
@@ -57,7 +57,7 @@
           <th>Store Address</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody data-infinite-scroll-target="rows">
         <% @events.each do |event| %>
           <tr>
             <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
