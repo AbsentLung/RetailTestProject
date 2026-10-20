@@ -2,6 +2,8 @@
 
 The original assignment is in [ASSIGNMENT.md](ASSIGNMENT.md).
 
+**This branch (`proposed-changes-new-design`) is an optional bonus** - a visual redesign plus additional features (alerts filtering, sorting, live search, CSV export) built on top of the submission. Every assignment requirement was already satisfied on `proposed-changes-joey`; none of this branch's content was needed to meet the spec. See `DESIGN_PROPOSAL_FINAL.md`, `DESIGN_REVIEWED_PROPOSAL.md`, and `DESIGN_IMPLEMENTATION_REPORT.md` for what this branch adds and why.
+
 ## Running it
 
 Requires Ruby 3.2.2 and PostgreSQL 13+.
@@ -12,7 +14,8 @@ bin/rails db:create db:migrate db:seed
 bin/rails tracking_events:import          # ~44s, includes alert generation
 bin/rails price_checks:generate_sample    # needs the import above first
 bin/rails price_checks:import
-bin/rails test                            # 34 tests
+bin/rails test                            # 84 tests on this branch (34 on proposed-changes-joey)
+bin/rails test:system                     # 6 more - real Chrome via Capybara + Selenium
 ```
 
 ## Key decisions

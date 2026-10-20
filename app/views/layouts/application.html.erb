@@ -1,16 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <title>RetailTestProject</title>
+    <title>Retail Inventory</title>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
 
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
   <body>
-    <%= yield %>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <span class="brand">Retail Inventory</span>
+        <nav class="site-nav">
+          <%= nav_link "Products", products_path, "products" %>
+          <%= nav_link "Stores", stores_path, "stores" %>
+          <%= nav_link "Brands", brands_path, "brands" %>
+          <%= nav_link "Alerts", alerts_path, "alerts" %>
+        </nav>
+      </div>
+    </header>
+
+    <main class="site-main">
+      <%= yield %>
+    </main>
   </body>
 </html>

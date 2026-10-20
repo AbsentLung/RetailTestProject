@@ -33,3 +33,8 @@
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+
+# npm dependencies for the TypeScript/esbuild controller build - see
+# package.json. Not needed at runtime: compiled output under
+# app/javascript/controllers/ is committed, same as any other asset.
+/node_modules

@@ -1,54 +1,95 @@
-<h1>Store</h1>
+<div class="page-header">
+  <h1>Store</h1>
+</div>
 
-<p>
-  <strong>Address:</strong>
-  <%= @store.address %>
-</p>
+<div class="card">
+  <div class="field">
+    <span class="field-label">Address:</span>
+    <%= @store.address %>
+  </div>
+</div>
 
 <% if @price_history.any? %>
-  <h2>Recent Price Checks</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Product</th>
-        <th>Price</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @price_history.each do |price_check| %>
-        <tr>
-          <td><%= price_check.event_time.strftime("%Y-%m-%d") %></td>
-          <td><%= link_to price_check.product.name, product_path(price_check.product) %></td>
-          <td>$<%= format("%.2f", price_check.price_cents / 100.0) %></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
+  <div class="card">
+    <h2>Recent Price Checks</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Product</th>
+            <th class="num">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @price_history.each do |price_check| %>
+            <tr>
+              <td><%= price_check.event_time.strftime("%Y-%m-%d") %></td>
+              <td><%= link_to price_check.product.name, product_path(price_check.product) %></td>
+              <td class="num">$<%= format("%.2f", price_check.price_cents / 100.0) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
 <% end %>
 
-<h2>Tracking Events (page <%= params[:page].to_i.clamp(1..) %>)</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Event Time</th>
-      <th>Inventory Present?</th>
-      <th>Product</th>
-      <th>Brand</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @events.first(Paginatable::PER_PAGE).each do |event| %>
-      <tr>
-        <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
-        <td><%= event.inventory_present ? "Yes" : "No" %></td>
-        <td><%= link_to event.product.name, product_path(event.product) %></td>
-        <td><%= event.product.brand&.name %></td>
-      </tr>
+<div class="card" id="tracking-events" data-controller="live-search">
+  <h2>Tracking Events</h2>
+  <%= form_with url: store_path(@store, anchor: "tracking-events"), method: :get, local: true, class: "filter-row", data: { controller: "auto-submit" } do %>
+    <div class="filter-field">
+      <%= label_tag :inventory_present, "Inventory Present?" %>
+      <%= select_tag :inventory_present, options_for_select([["All", ""], ["Yes", "yes"], ["No", "no"]], @inventory_present || ""), data: { action: "change->auto-submit#submit" } %>
+    </div>
+    <div class="filter-field">
+      <%= label_tag :product_id, "Product" %>
+      <%= select_tag :product_id, options_for_select([["All products", ""]] + @products_for_filter, @product_id || ""), data: { action: "change->auto-submit#submit" } %>
+    </div>
+    <div class="filter-field">
+      <%= label_tag :from, "From" %>
+      <%= date_field_tag :from, @from, data: { action: "change->auto-submit#submit" } %>
+    </div>
+    <div class="filter-field">
+      <%= label_tag :to, "To" %>
+      <%= date_field_tag :to, @to, data: { action: "change->auto-submit#submit" } %>
+    </div>
+    <%# Fields submit on change via Stimulus - this button only exists for
+        the no-JS case, where nothing else can submit the form at all. %>
+    <noscript><button type="submit" class="btn-filter">Filter</button></noscript>
+    <% if @inventory_present || @product_id || @from || @to %>
+      <%= link_to "Clear filters", store_path(@store, anchor: "tracking-events"), class: "nav-link" %>
     <% end %>
-  </tbody>
-</table>
-<%= pagination_links(@events) %>
+  <% end %>
+  <div data-live-search-target="results">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <%= sort_header "Event Time", url: event_sort_url("event_time"), active: @event_sort == "event_time", direction: @event_direction %>
+            <%= sort_header "Inventory Present?", url: event_sort_url("inventory_present"), active: @event_sort == "inventory_present", direction: @event_direction %>
+            <%= sort_header "Product", url: event_sort_url("product"), active: @event_sort == "product", direction: @event_direction %>
+            <%= sort_header "Brand", url: event_sort_url("brand"), active: @event_sort == "brand", direction: @event_direction %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @events.each do |event| %>
+            <tr>
+              <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+              <td><%= event.inventory_present ? "Yes" : "No" %></td>
+              <td><%= link_to event.product.name, product_path(event.product) %></td>
+              <td><%= link_to event.product.brand.name, brand_path(event.product.brand) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @events.empty? %>
+        <p class="empty-state">No tracking events match these filters.</p>
+      <% end %>
+    </div>
+    <%= keyset_pagination_links(@events_page) %>
+  </div>
+</div>
 
 <nav>
   <%= link_to "Back to Stores", stores_path %> |

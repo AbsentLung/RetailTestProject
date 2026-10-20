@@ -1,28 +1,51 @@
-<h1>Stores</h1>
+<div data-controller="live-search">
+  <div class="page-header">
+    <h1>Stores</h1>
+  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Address</th>
-      <th>Tracking Events</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @stores.first(Paginatable::PER_PAGE).each do |store| %>
-      <tr>
-        <td><%= store.address %></td>
-        <td><%= @event_counts.fetch(store.id, 0) %></td>
-        <td><%= link_to "View", store_path(store) %></td>
-      </tr>
+  <div class="card">
+    <%= form_with url: stores_path, method: :get, local: true, class: "filter-row" do %>
+      <div class="filter-field">
+        <%= label_tag :q, "Search by address" %>
+        <%= search_field_tag :q, @q, placeholder: "e.g. Diagon Alley", autocomplete: "off",
+              data: { action: "input->live-search#apply", "live-search-target": "field" } %>
+      </div>
+      <% if @q %>
+        <%= link_to "Clear", stores_path, class: "nav-link" %>
+      <% end %>
     <% end %>
-  </tbody>
-</table>
-<%= pagination_links(@stores) %>
+  </div>
+
+  <div class="card" data-live-search-target="results">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <%= sort_header "Address", url: sort_url("address"), active: @sort == "address", direction: @direction %>
+            <%= sort_header "Tracking Events", url: sort_url("events"), active: @sort == "events", direction: @direction, th_class: "num" %>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @stores.first(Paginatable::PER_PAGE).each do |store| %>
+            <tr>
+              <td><%= store.address %></td>
+              <td class="num"><%= @event_counts.fetch(store.id, 0) %></td>
+              <td><%= link_to "View", store_path(store) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @stores.empty? %>
+        <p class="empty-state">No stores match this search.</p>
+      <% end %>
+    </div>
+    <%= pagination_links(@stores) %>
+  </div>
+</div>
 
 <nav>
   <%= link_to "Products", products_path %> |
   <%= link_to "Brands", brands_path %> |
   <%= link_to "Alerts", alerts_path %>
 </nav>
-

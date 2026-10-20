@@ -1,30 +1,62 @@
-<h1>Alerts (page <%= params[:page].to_i.clamp(1..) %>)</h1>
+<div data-controller="alerts-filter">
+  <div class="page-header">
+    <h1>Alerts</h1>
+    <%= link_to "Export CSV", alerts_path(request.query_parameters.except("before", "after").merge(format: :csv)), class: "nav-link" %>
+  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Brand</th>
-      <th>Product</th>
-      <th>Store</th>
-      <th>Triggered</th>
-      <th>Status</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @alerts.first(Paginatable::PER_PAGE).each do |alert| %>
-      <tr>
-        <td><%= link_to alert.brand.name, brand_path(alert.brand) %></td>
-        <td><%= link_to alert.product.name, product_path(alert.product) %></td>
-        <td><%= link_to alert.store.address, store_path(alert.store) %></td>
-        <td><%= alert.triggered_at.strftime("%Y-%m-%d") %></td>
-        <td><%= alert.resolved_at ? "Resolved #{alert.resolved_at.strftime('%Y-%m-%d')}" : "Ongoing" %></td>
-        <td><%= link_to "View", alert_path(alert) %></td>
-      </tr>
+  <div class="card">
+    <%= form_with url: alerts_path, method: :get, local: true, class: "filter-row" do %>
+      <div class="filter-field">
+        <%= label_tag :status, "Status" %>
+        <%= select_tag :status, options_for_select([["All", ""], ["Open", "open"], ["Resolved", "resolved"]], @status || "") %>
+      </div>
+      <div class="filter-field">
+        <%= label_tag :brand_id, "Brand" %>
+        <%= select_tag :brand_id, options_for_select([["All brands", ""]] + @brands.map { |b| [b.name, b.id] }, @brand_id || "") %>
+      </div>
+      <%# This whole card only renders at all for a no-JS client or before
+          React has mounted - once app/javascript/controllers_src/alerts_filter_controller.tsx
+          takes over, it replaces all of this with its own version. %>
+      <button type="submit" class="btn-filter">Filter</button>
+      <% if @status || @brand_id %>
+        <%= link_to "Clear filters", alerts_path, class: "nav-link" %>
+      <% end %>
     <% end %>
-  </tbody>
-</table>
-<%= pagination_links(@alerts) %>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <%= sort_header "Brand", url: sort_url("brand"), active: @sort == "brand", direction: @direction %>
+            <%= sort_header "Product", url: sort_url("product"), active: @sort == "product", direction: @direction %>
+            <%= sort_header "Store", url: sort_url("store"), active: @sort == "store", direction: @direction %>
+            <%= sort_header "Triggered", url: sort_url("triggered_at"), active: @sort == "triggered_at", direction: @direction %>
+            <%= sort_header "Status", url: sort_url("status"), active: @sort == "status", direction: @direction %>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @alerts.each do |alert| %>
+            <tr>
+              <td><%= link_to alert.brand.name, brand_path(alert.brand) %></td>
+              <td><%= link_to alert.product.name, product_path(alert.product) %></td>
+              <td><%= link_to alert.store.address, store_path(alert.store) %></td>
+              <td><%= alert.triggered_at.strftime("%Y-%m-%d") %></td>
+              <td><%= alert_status_pill(alert) %></td>
+              <td><%= link_to "View", alert_path(alert) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @alerts.empty? %>
+        <p class="empty-state">No alerts match these filters.</p>
+      <% end %>
+    </div>
+    <%= keyset_pagination_links(@page) %>
+  </div>
+</div>
 
 <nav>
   <%= link_to "Products", products_path %> |

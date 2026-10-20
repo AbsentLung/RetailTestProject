@@ -1,57 +1,61 @@
-<h1>Alert</h1>
+<div class="page-header">
+  <h1>Alert</h1>
+</div>
 
-<p>
-  <strong>Brand:</strong>
-  <%= link_to @alert.brand.name, brand_path(@alert.brand) %>
-</p>
+<div class="card">
+  <div class="field">
+    <span class="field-label">Brand:</span>
+    <%= link_to @alert.brand.name, brand_path(@alert.brand) %>
+  </div>
 
-<p>
-  <strong>Product:</strong>
-  <%= link_to @alert.product.name, product_path(@alert.product) %>
-</p>
+  <div class="field">
+    <span class="field-label">Product:</span>
+    <%= link_to @alert.product.name, product_path(@alert.product) %>
+  </div>
 
-<p>
-  <strong>Store:</strong>
-  <%= link_to @alert.store.address, store_path(@alert.store) %>
-</p>
+  <div class="field">
+    <span class="field-label">Store:</span>
+    <%= link_to @alert.store.address, store_path(@alert.store) %>
+  </div>
 
-<p>
-  <strong>Triggered:</strong>
-  <%= @alert.triggered_at.strftime("%Y-%m-%d") %>
-  (second consecutive "no inventory" check)
-</p>
+  <div class="field">
+    <span class="field-label">Triggered:</span>
+    <%= @alert.triggered_at.strftime("%Y-%m-%d") %>
+    (second consecutive "no inventory" check)
+  </div>
 
-<p>
-  <strong>Status:</strong>
-  <% if @alert.resolved_at %>
-    Resolved <%= @alert.resolved_at.strftime("%Y-%m-%d") %>
-  <% else %>
-    Ongoing
-  <% end %>
-</p>
+  <div class="field">
+    <span class="field-label">Status:</span>
+    <%= alert_status_pill(@alert) %>
+  </div>
+</div>
 
-<h2>Triggering Events</h2>
-<table>
-  <thead>
-    <tr>
-      <th></th>
-      <th>Event Time</th>
-      <th>Inventory Present?</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>First</td>
-      <td><%= @alert.first_event.event_time.strftime("%Y-%m-%d") %></td>
-      <td><%= @alert.first_event.inventory_present ? "Yes" : "No" %></td>
-    </tr>
-    <tr>
-      <td>Second</td>
-      <td><%= @alert.second_event.event_time.strftime("%Y-%m-%d") %></td>
-      <td><%= @alert.second_event.inventory_present ? "Yes" : "No" %></td>
-    </tr>
-  </tbody>
-</table>
+<div class="card">
+  <h2>Triggering Events</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Event Time</th>
+          <th>Inventory Present?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>First</td>
+          <td><%= @alert.first_event.event_time.strftime("%Y-%m-%d") %></td>
+          <td><%= @alert.first_event.inventory_present ? "Yes" : "No" %></td>
+        </tr>
+        <tr>
+          <td>Second</td>
+          <td><%= @alert.second_event.event_time.strftime("%Y-%m-%d") %></td>
+          <td><%= @alert.second_event.inventory_present ? "Yes" : "No" %></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <nav>
   <%= link_to "Back to Alerts", alerts_path %> |

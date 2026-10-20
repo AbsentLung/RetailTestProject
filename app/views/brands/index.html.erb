@@ -1,28 +1,51 @@
-<h1>Brands</h1>
+<div data-controller="live-search">
+  <div class="page-header">
+    <h1>Brands</h1>
+  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Products</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @brands.first(Paginatable::PER_PAGE).each do |brand| %>
-      <tr>
-        <td><%= brand.name %></td>
-        <td><%= @product_counts.fetch(brand.id, 0) %></td>
-        <td><%= link_to "View", brand_path(brand) %></td>
-      </tr>
+  <div class="card">
+    <%= form_with url: brands_path, method: :get, local: true, class: "filter-row" do %>
+      <div class="filter-field">
+        <%= label_tag :q, "Search by name" %>
+        <%= search_field_tag :q, @q, placeholder: "e.g. Honeydukes", autocomplete: "off",
+              data: { action: "input->live-search#apply", "live-search-target": "field" } %>
+      </div>
+      <% if @q %>
+        <%= link_to "Clear", brands_path, class: "nav-link" %>
+      <% end %>
     <% end %>
-  </tbody>
-</table>
-<%= pagination_links(@brands) %>
+  </div>
+
+  <div class="card" data-live-search-target="results">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <%= sort_header "Name", url: sort_url("name"), active: @sort == "name", direction: @direction %>
+            <%= sort_header "Products", url: sort_url("products"), active: @sort == "products", direction: @direction, th_class: "num" %>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @brands.first(Paginatable::PER_PAGE).each do |brand| %>
+            <tr>
+              <td><%= brand.name %></td>
+              <td class="num"><%= @product_counts.fetch(brand.id, 0) %></td>
+              <td><%= link_to "View", brand_path(brand) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @brands.empty? %>
+        <p class="empty-state">No brands match this search.</p>
+      <% end %>
+    </div>
+    <%= pagination_links(@brands) %>
+  </div>
+</div>
 
 <nav>
   <%= link_to "Products", products_path %> |
   <%= link_to "Stores", stores_path %> |
   <%= link_to "Alerts", alerts_path %>
 </nav>
-
