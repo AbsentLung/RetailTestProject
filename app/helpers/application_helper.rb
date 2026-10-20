@@ -31,13 +31,11 @@ module ApplicationHelper
     text = active ? "#{label} #{direction == :asc ? "▲" : "▼"}" : label
     # live-search#sort fetches this link's own href and swaps the results
     # region in place - no reload, no scroll jump, same as Alerts' React UI.
-    # data-turbo="false" is the fallback for when that doesn't fire (JS
-    # disabled, or this page has no live-search controller on it): without
-    # it, Turbo Drive's own "visit" doesn't resolve a #anchor in the URL the
-    # way a real page load does, and a sort click that's supposed to land
-    # back on a specific table would land at the top of the page instead.
+    # The no-JS fallback is just the plain link itself: Turbo Drive is
+    # disabled globally (see application.js), so without JS this is already
+    # an ordinary navigation that resolves a #anchor correctly on its own.
     content_tag(:th, class: th_class) do
-      link_to(text, url, class: "sort-link", data: { turbo: false, action: "live-search#sort" })
+      link_to(text, url, class: "sort-link", data: { action: "live-search#sort" })
     end
   end
 

@@ -58,7 +58,7 @@
         the no-JS case, where nothing else can submit the form at all. %>
     <noscript><button type="submit" class="btn-filter">Filter</button></noscript>
     <% if @inventory_present || @product_id || @from || @to %>
-      <%= link_to "Clear filters", store_path(@store, anchor: "tracking-events"), class: "nav-link", data: { turbo: false } %>
+      <%= link_to "Clear filters", store_path(@store, anchor: "tracking-events"), class: "nav-link" %>
     <% end %>
   <% end %>
   <div data-live-search-target="results">

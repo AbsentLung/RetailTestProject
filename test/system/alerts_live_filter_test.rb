@@ -74,6 +74,24 @@ class AlertsLiveFilterTest < ApplicationSystemTestCase
     assert_equal original_order, all("tbody tr td:first-child").map(&:text)
   end
 
+  test "opening a filtered alerts URL directly shows the filtered set, not everything" do
+    brand = Brand.create!(name: "Direct Load Brand")
+    store = Store.create!(address: "1 Direct Load Ave")
+    open_alert = make_alert(brand: brand, store: store, name: "Open Product")
+    resolved_alert = make_alert(brand: brand, store: store, name: "Resolved Product")
+    resolved_alert.update!(resolved_at: 1.day.ago)
+
+    # Not reached by clicking through the page - this is what a bookmark, a
+    # shared link, or a plain reload of a filtered URL actually does. Before
+    # this was fixed, mount ignored location.search entirely and reset to
+    # "all alerts," rewriting the URL back to plain /alerts underneath it.
+    visit alerts_path(status: "open")
+
+    assert_text open_alert.product.name
+    assert_no_text resolved_alert.product.name
+    assert_match(/status=open/, page.current_url)
+  end
+
   private
 
   def make_alert(brand:, store:, name:)

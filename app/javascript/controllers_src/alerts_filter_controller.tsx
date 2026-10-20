@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { createRoot, type Root } from "react-dom/client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 // Mounts a React-rendered replacement for the alerts filter/table/pagination
 // over the server-rendered version already in the DOM. The server-rendered
@@ -66,6 +66,18 @@ function formatDate(iso: string): string {
   return iso.slice(0, 10)
 }
 
+function parseOverridesFromSearch(search: string): LoadOverrides {
+  const params = new URLSearchParams(search)
+  return {
+    status: params.get("status") ?? "",
+    brandId: params.get("brand_id") ?? "",
+    sort: params.get("sort") ?? DEFAULT_SORT,
+    direction: (params.get("direction") as "asc" | "desc" | null) ?? DEFAULT_DIRECTION,
+    after: params.get("after") ?? undefined,
+    before: params.get("before") ?? undefined,
+  }
+}
+
 function StatusPill({ resolvedAt }: { resolvedAt: string | null }) {
   if (resolvedAt) {
     return <span className="pill pill-resolved">Resolved {formatDate(resolvedAt)}</span>
@@ -92,12 +104,20 @@ function AlertsFilters() {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [prevCursor, setPrevCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const currentFetch = useRef<AbortController | null>(null)
 
   async function load(overrides: LoadOverrides = {}, { push = true }: { push?: boolean } = {}) {
     const nextStatus = overrides.status ?? status
     const nextBrandId = overrides.brandId ?? brandId
     const nextSort = overrides.sort ?? sort
     const nextDirection = overrides.direction ?? direction
+
+    // Cancel whatever's still in flight first - without this, two quick
+    // filter/sort changes race, and whichever response happens to arrive
+    // last wins even if it isn't the one requested last.
+    currentFetch.current?.abort()
+    const controller = new AbortController()
+    currentFetch.current = controller
 
     setLoading(true)
     const query = buildQuery({
@@ -109,7 +129,21 @@ function AlertsFilters() {
       before: overrides.before,
     })
 
-    const response = await fetch(`/alerts.json?${query.toString()}`, { headers: { Accept: "application/json" } })
+    let response
+    try {
+      response = await fetch(`/alerts.json?${query.toString()}`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return // superseded by a newer load()
+      setLoading(false)
+      return // offline/network failure - leave the table showing what it already had
+    }
+    if (!response.ok) {
+      setLoading(false)
+      return // leave the table as it was rather than crash trying to parse an error page as JSON
+    }
     const data: AlertsResponse = await response.json()
 
     setStatus(nextStatus)
@@ -132,31 +166,24 @@ function AlertsFilters() {
   }
 
   useEffect(() => {
-    load()
-    // Runs once on mount, reading the URL this page was actually loaded
-    // with isn't needed here - the no-JS version already showed that page;
-    // this is what takes over once React has actually mounted.
+    // Reads the URL once, on mount, instead of starting from blank defaults -
+    // opening /alerts?status=open directly (a bookmark, a shared link, a
+    // plain reload) should show what the URL actually asks for, not silently
+    // reset to "all alerts" and rewrite the URL out from under it. push:
+    // false since we're not navigating anywhere, just matching what's
+    // already there - pushing here would also add a duplicate history
+    // entry, so leaving the page would need two Back presses instead of one.
+    load(parseOverridesFromSearch(window.location.search), { push: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     function handlePopState() {
-      const params = new URLSearchParams(window.location.search)
-      load(
-        {
-          status: params.get("status") ?? "",
-          brandId: params.get("brand_id") ?? "",
-          sort: params.get("sort") ?? DEFAULT_SORT,
-          direction: (params.get("direction") as "asc" | "desc" | null) ?? DEFAULT_DIRECTION,
-          after: params.get("after") ?? undefined,
-          before: params.get("before") ?? undefined,
-        },
-        { push: false },
-      )
+      load(parseOverridesFromSearch(window.location.search), { push: false })
     }
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-    // Every field above comes from the popstate event itself, not from
+    // Every field handlePopState reads comes from the URL itself, not from
     // closed-over state, so the empty deps array (and the resulting stale
     // `load` closure from the first render) is safe here.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,7 +1,7 @@
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { Controller } from "@hotwired/stimulus";
 import { createRoot } from "react-dom/client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 class alerts_filter_controller_default extends Controller {
   root = null;
   connect() {
@@ -32,6 +32,17 @@ function buildQuery(params) {
 function formatDate(iso) {
   return iso.slice(0, 10);
 }
+function parseOverridesFromSearch(search) {
+  const params = new URLSearchParams(search);
+  return {
+    status: params.get("status") ?? "",
+    brandId: params.get("brand_id") ?? "",
+    sort: params.get("sort") ?? DEFAULT_SORT,
+    direction: params.get("direction") ?? DEFAULT_DIRECTION,
+    after: params.get("after") ?? void 0,
+    before: params.get("before") ?? void 0
+  };
+}
 function StatusPill({ resolvedAt }) {
   if (resolvedAt) {
     return /* @__PURE__ */ jsxs("span", { className: "pill pill-resolved", children: [
@@ -51,11 +62,15 @@ function AlertsFilters() {
   const [nextCursor, setNextCursor] = useState(null);
   const [prevCursor, setPrevCursor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const currentFetch = useRef(null);
   async function load(overrides = {}, { push = true } = {}) {
     const nextStatus = overrides.status ?? status;
     const nextBrandId = overrides.brandId ?? brandId;
     const nextSort = overrides.sort ?? sort;
     const nextDirection = overrides.direction ?? direction;
+    currentFetch.current?.abort();
+    const controller = new AbortController();
+    currentFetch.current = controller;
     setLoading(true);
     const query = buildQuery({
       status: nextStatus,
@@ -65,7 +80,21 @@ function AlertsFilters() {
       after: overrides.after,
       before: overrides.before
     });
-    const response = await fetch(`/alerts.json?${query.toString()}`, { headers: { Accept: "application/json" } });
+    let response;
+    try {
+      response = await fetch(`/alerts.json?${query.toString()}`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setLoading(false);
+      return;
+    }
+    if (!response.ok) {
+      setLoading(false);
+      return;
+    }
     const data = await response.json();
     setStatus(nextStatus);
     setBrandId(nextBrandId);
@@ -82,22 +111,11 @@ function AlertsFilters() {
     }
   }
   useEffect(() => {
-    load();
+    load(parseOverridesFromSearch(window.location.search), { push: false });
   }, []);
   useEffect(() => {
     function handlePopState() {
-      const params = new URLSearchParams(window.location.search);
-      load(
-        {
-          status: params.get("status") ?? "",
-          brandId: params.get("brand_id") ?? "",
-          sort: params.get("sort") ?? DEFAULT_SORT,
-          direction: params.get("direction") ?? DEFAULT_DIRECTION,
-          after: params.get("after") ?? void 0,
-          before: params.get("before") ?? void 0
-        },
-        { push: false }
-      );
+      load(parseOverridesFromSearch(window.location.search), { push: false });
     }
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);

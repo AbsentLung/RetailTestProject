@@ -71,18 +71,24 @@ export default class extends Controller {
     const controller = new AbortController()
     this.currentFetch = controller
 
-    let response
+    let html
     try {
-      response = await fetch(url, { headers: { Accept: "text/html" }, signal: controller.signal })
+      // response.text() is in the same try as the fetch itself, not after
+      // it - an abort can land mid-body-read just as easily as before the
+      // response even arrives, and either way it should be caught here
+      // rather than escape as an unhandled rejection (search() calls swap()
+      // without awaiting it, so nothing outside this method would catch it).
+      const response = await fetch(url, { headers: { Accept: "text/html" }, signal: controller.signal })
+      if (!response.ok) return false
+      html = await response.text()
     } catch (error) {
       // Being superseded by a newer swap() isn't a failure - don't let
       // sort() treat it as one and fall back to a real navigation.
       if (error instanceof DOMException && error.name === "AbortError") return true
       return false // offline/network failure
     }
-    if (!response.ok) return false
 
-    const doc = new DOMParser().parseFromString(await response.text(), "text/html")
+    const doc = new DOMParser().parseFromString(html, "text/html")
     const newResults = doc.querySelector('[data-live-search-target="results"]')
     if (!newResults) return false // nothing to show - don't push a URL for a swap that didn't happen
     this.resultsTarget.replaceWith(document.importNode(newResults, true))

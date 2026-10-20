@@ -45,15 +45,16 @@ class live_search_controller_default extends Controller {
     this.currentFetch?.abort();
     const controller = new AbortController();
     this.currentFetch = controller;
-    let response;
+    let html;
     try {
-      response = await fetch(url, { headers: { Accept: "text/html" }, signal: controller.signal });
+      const response = await fetch(url, { headers: { Accept: "text/html" }, signal: controller.signal });
+      if (!response.ok) return false;
+      html = await response.text();
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return true;
       return false;
     }
-    if (!response.ok) return false;
-    const doc = new DOMParser().parseFromString(await response.text(), "text/html");
+    const doc = new DOMParser().parseFromString(html, "text/html");
     const newResults = doc.querySelector('[data-live-search-target="results"]');
     if (!newResults) return false;
     this.resultsTarget.replaceWith(document.importNode(newResults, true));
